@@ -1,0 +1,24 @@
+.nub {
+	position: absolute;
+	width: 12px;
+	height: 12px;
+	cursor: move;
+	margin: -6px;
+	border-radius: 6px;
+    background: #3F9FFF;
+    background: -moz-linear-gradient(#7FBFFF, #007FFF);
+    background: -webkit-gradient(linear, left top, left bottom, from(#7FBFFF), to(#007FFF));
+    border: 2px solid white;
+    -moz-border-radius: 5px;
+    -webkit-border-radius: 5px;
+    box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+    -moz-box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+    -webkit-box-shadow: 0 2px 2px rgba(0, 0, 0, 0.5);
+    cursor: move;
+}
+
+
+#image_zone  {
+	-moz-user-select:none;
+	-webkit-user-select:none;
+}
