@@ -1,5 +1,10 @@
 //Caman.DEBUG = ('console' in window);
 
+//
+//Image de grande taille tronqué avec webgl sur chromium, fonctionnel sur firefox
+//Erreur: out of range
+//
+
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
 var image_affiche = new Image();//petite taille préview (pour traitement CamanJS)
@@ -7,11 +12,14 @@ var canvas_traitement = document.createElement('canvas');//pour effectuer les tr
 var filtre_utilise = null;
 var ratio_image;
 $.fn.cropper;
-        var canvas_glfx;
+        var canvas_glfx = null;
 	var texture = null;
 image_affiche.id = "image";
 image_affiche.className = "img-responsive center-block";
-image_base.className = "img-responsive center-block";
+image_base.className = "img-responsive center-block"; 
+image_base.crossOrigin="Anonymous";
+image_affiche.crossOrigin="Anonymous";
+image_modif.crossOrigin="Anonymous";
 
 var image_position = {	'screen':{'left':0,'top':0},
 			'modal':{'left':0,'top':0}	} ;
@@ -71,13 +79,6 @@ function image_request(demande){
         $('.tab-content div').removeClass("active");
 
 	/*delete image_base, image_modif, image_affiche; //pour eviter de garder une ancienne image traité
-
-	image_base = new Image();
-	image_modif = new Image();
-	image_affiche = new Image();
-	image_affiche.id = "image";
-	image_affiche.className = "img-responsive center-block";
-	image_base.className = "img-responsive center-block";
 */	$('#loading_circle').show();
 	$('#image_url').empty();
 	$('#image_url').append('<div> demande:'+demande+'</div>');
@@ -131,7 +132,7 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
     var rounds = 2;
     var roundRatio = ratio * rounds;
     for (var i = 1; i <= rounds; i++) {
-        console.log("Step: "+i);
+      //  //console.log("Step: "+i);
 
         // tmp
         canvasCopy.width = imgWidth * roundRatio / i;
@@ -152,49 +153,41 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
     canvas.height = imgHeight * roundRatio / rounds;
     canvasContext.drawImage(canvasCopy2, 0, 0, canvasCopy2.width, canvasCopy2.height, 0, 0, canvas.width, canvas.height);
 
+	$(canvasCopy).remove();
+	$(canvasCopy2).remove();
 	return ratio;
 }
 
 function load_image(url){
-
+	if(canvas_glfx == null) return;
+        $('#famille li').removeClass("active");
+        $('.tab-content div').removeClass("active");
+	$('#loading_circle').show();
+	$('#image_url').empty();
+	$('#image_zone').empty();
 	image_affiche.onload = function () { //premier chargement de l'image affichée
 		$('#image_zone').empty().append(image_affiche);
-		//apparence_modif_image();
 		$('#loading_circle').hide();
 		image_affiche.onload = null;
 		reset();
-		canvas_glfx.height = image_affiche.height
-		canvas_glfx.width = image_affiche.width
-		texture = canvas_glfx.texture(image_affiche);
 	};
 
 	image_modif.onload = function(){
-		//canvas_traitement.getContext('2d').drawImage(image_modif,0,0);
-		//delete canvas_traitement, canvas_glfx, texture; 
-		//canvas_traitement = document.createElement('canvas');
 
 		ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
 		image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
 
-		/*try {
-			canvas_glfx = fx.canvas();
-			texture = canvas_glfx.texture(image_affiche);
-		} catch (e) {
-			alert(e);
-		}*/
-		if(texture != null){
-			texture = canvas_glfx.texture(image_affiche);
-			canvas_glfx.height = image_affiche.height
-			canvas_glfx.width = image_affiche.width
-		}
+		canvas_glfx.height = canvas_traitement.height;
+		canvas_glfx.width = canvas_traitement.width;
+		texture = canvas_glfx.texture(canvas_traitement);
+
 		$('#save').attr({download:"image.jpeg",target: '_blank',href  : image_modif.src });
 		//image_modif.onload = null;
 	};
 
 	image_base.src = url; //"image/unnamed3.jpg";
 	image_modif.src = url;
-	var text = $('#image_url').text();
-	$('#image_url').empty().text(text+', url charge:'+url);
+	$('#image_url').empty().text('url charge:'+url);
 
 	
 	var erreur = function () {
@@ -276,7 +269,8 @@ function camanFiltre(filtre){//pour le préview
 
 function slider_change(slider_id, traitement_id){
 	var slider = document.getElementById(slider_id);
-	for (var traitement of traitements){
+	for (var i = 0; i < traitements.length; i++){
+	var traitement = traitements[i];
 		if(traitement.id == traitement_id){
 			traitement[slider.id] = parseFloat(slider.value);
                         traitement.update();
@@ -293,6 +287,9 @@ function reset(){
 	$(canvas_traitement).remove();
 	delete canvas_traitement;
 	canvas_traitement = document.createElement('canvas');
+	$(canvas_glfx).remove();
+	delete canvas_glfx;
+	canvas_glfx = fx.canvas();
 	image_modif.src = image_base.src;//image_affiche change à onload de image_modif
 	filtre_utilise = null;
 	setSelectedTraitement(null);
@@ -300,7 +297,8 @@ function reset(){
 	/////////
 	//  Filtres
 	/////////
-        for(var filtre of filtres){
+        for(var i = 0; i < filtres.length; i++){
+		var filtre = filtres[i];
                 $('#filtre').append('<button type="button" class="btn" id="'+filtre+'">'+filtre+'</button>');
         }
 	$('#filtre_zone #validation').append('<button id="valider" type="button" value="true" class="btn" onclick="filtreValidation(this.value)">Valider</button>' +
@@ -315,7 +313,8 @@ function reset(){
         /////////
 	$('#traitement_zone').append('<ul id="traitement" class="center-block nav nav-pills nav-justified"></ul');
 	$('#traitement_zone').append('<div id="traitement_parametre" class="tab-content"></div>');
-       for(var traitement of traitements){
+       for(var i = 0; i < traitements.length; i++){
+		var traitement = traitements[i];
 		
                $('#traitement').append('<li><a data-toggle="tab" href="#'+traitement.id+'" onclick="setSelectedTraitement(\''+traitement.id+'\')">'+traitement.label+'</a></li>');
 
@@ -323,12 +322,14 @@ function reset(){
                 //  Sliders
                 ///////// 
 		var html = '<div id="'+traitement.id+'" class="row center-block tab-pane fade in">';
-                for(var slider of traitement.sliders){
+                for(var j = 0; j < traitement.sliders.length; j++){
+			var slider = traitement.sliders[j];
                         html += '<input type="range" id="'+slider.id+'" />';
                 }
                 html += '</div>';
                 $('#traitement_parametre').append(html);
-                for(var slider of traitement.sliders){
+                for(var j = 0; j < traitement.sliders.length; j++){
+			var slider = traitement.sliders[j];
                         traitement[slider.id] = slider.value;
                         $('#'+slider.id).attr({
                                 'oninput': "slider_change(this.id,'"+traitement.id+"')",
@@ -347,7 +348,9 @@ function reset(){
 		//////////
 		$('#'+traitement.id).append('<button id="valider" type="button" value="true" class="btn">Valider</button>'+
 		'<button id="annuler" type="button" value="false" class="btn">Annuler</button>');
-		$('#'+traitement.id+' #valider').on('click',{traitement:traitement},traitement.validate);
+		$('#'+traitement.id+' #valider').on('click',{traitement:traitement},function(event){
+			event.data.traitement.validate();
+		});
 		$('#'+traitement.id+' #annuler').on('click',annuler);
         
 
@@ -355,7 +358,8 @@ function reset(){
                 //  Nubs (position on image)
                 /////////
 		var nub_present = false;
-		for (var nub of traitement.nubs) {
+		for (var j = 0; j < traitement.nubs.length; j++) {
+			var nub = traitement.nubs[j];
 			var x = nub.x * canvas_glfx.width;
 			var y = nub.y * canvas_glfx.height;
 			traitement[nub.id] = { x: x, y: y };
@@ -378,20 +382,23 @@ function setSelectedTraitement(traitement_id){
 	$('#traitement_parametre > div').removeClass('active');
 	$('#traitement > li').removeClass('active');
 	$('#image_zone .nub').remove();
+	image_affiche.src = canvas_traitement.toDataURL('image/jpeg');
 	if(traitement_id == null){
 		return;
 	}
 	$('#'+traitement_id).addClass('active');
 //	image_affiche.src = canvas_traitement.toDataURL('image/jpeg');
 	var traitement;
-	for (traitement of traitements){
+	for (var i = 0; i < traitements.length; i++){
+		traitement = traitements[i];
 		if(traitement.id == traitement_id){
 			break;
 		}
 	}
 
 	// Reset all sliders
-	for (var slider of traitement.sliders) {
+	for (var i = 0; i < traitement.sliders.length; i++) {
+		var slider = traitement.sliders[i];
 		document.getElementById(slider.id).value = parseFloat(slider.value);
 		traitement[slider.id] = parseFloat(slider.value);
 	}
@@ -400,7 +407,8 @@ function setSelectedTraitement(traitement_id){
 	$('body').off('resize');
 	$('body').off('orientationchange');
 	// Generate all nubs
-	for (var nub of traitement.nubs) {
+	for (var i = 0; i < traitement.nubs.length; i++) {
+		var nub = traitement.nubs[i];
 		
 		var x = nub.x * canvas_glfx.width;
 		var y = nub.y * canvas_glfx.height;
@@ -428,7 +436,7 @@ function setSelectedTraitement(traitement_id){
                         var x = (e.touches[0].pageX - image_position.screen.left)*(canvas_glfx.width/$('#image').width());
                         var y = (e.touches[0].pageY - image_position.screen.top)*(canvas_glfx.height/$('#image').height());
 
-                        console.log("event.pageX:"+e.touches[0].pageX+", event.pageY:"+e.touches[0].pageY+", x:"+ x +", y:"+ y);
+                        //console.log("event.pageX:"+e.touches[0].pageX+", event.pageY:"+e.touches[0].pageY+", x:"+ x +", y:"+ y);
                         if(x<0) x = 0;
                         if(x>canvas_glfx.width) x = canvas_glfx.width;
                         if(y<0) y = 0;
@@ -450,7 +458,7 @@ function setSelectedTraitement(traitement_id){
 			var x = (event.pageX - image_position.screen.left)*(canvas_glfx.width/$('#image').width());
 			var y = (event.pageY - image_position.screen.top)*(canvas_glfx.height/$('#image').height());
 
-			//console.log("nub.id:"+nub.id+", event.paxeX:"+event.pageX+", event.pageY:"+event.pageY+", position_actuel_x:"+position_actuel_x+", position_actuel_y:"+position_actuel_y+", x:"+ x +", y:"+ y);
+			////console.log("nub.id:"+nub.id+", event.paxeX:"+event.pageX+", event.pageY:"+event.pageY+", position_actuel_x:"+position_actuel_x+", position_actuel_y:"+position_actuel_y+", x:"+ x +", y:"+ y);
                         if(x<0) x = 0;
                         if(x>canvas_glfx.width) x = canvas_glfx.width;
                         if(y<0) y = 0;
@@ -468,24 +476,24 @@ function setSelectedTraitement(traitement_id){
 		//	TACTILE
 		//$('#' + nub.id).on('touchmove',{nub:nub},ontouchmove);
 		$('#' + nub.id).on('touchstart',function(event){
-			console.log('drag activated');
+			//console.log('drag activated');
 			//$('#'+ event.target.id).on('mousemove',onmousemove);
 			$('body').on('touchmove',{nub:event.target},ontouchmove);
 		});
 		$('body').on('touchend', function(event){
-			console.log('drag disactivated');
+			//console.log('drag disactivated');
 			$('body').off('touchmove',ontouchmove);
 			traitement.update();
 		});
 
 		//	SOURIS
 		$('#' + nub.id).mousedown(function(event){
-			console.log('drag activated');
+			//console.log('drag activated');
 			//$('#'+ event.target.id).on('mousemove',onmousemove);
 			$('body').on('mousemove',{nub:event.target},onmousemove);
 		});
 		$('body').mouseup(function(event){
-			console.log('drag disactivated');
+			//console.log('drag disactivated');
 			$('body').off('mousemove',onmousemove);
 		});
 		var actualisePos = function(event){
@@ -531,6 +539,9 @@ function cropValidation(etat){
 		canvas_traitement.getContext("2d").drawImage(image_modif, -data.x/ratio_image,-data.y/ratio_image);
 		image_modif.src = canvas_traitement.toDataURL("image/jpeg");
 		//image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
+		$(canvas_glfx).remove();
+		delete canvas_glfx;
+		canvas_glfx = fx.canvas();
 	}
 	$('#image_zone #image').cropper("destroy");
 	$('#famille li').removeClass("active");
@@ -591,7 +602,8 @@ Traitement.prototype.addNub = function(id, x, y) {
 };
 
 var flip = false;
-for(var device of devices_glfx_flip){
+for(var i = 0; i < devices_glfx_flip.length; i++){
+	var device = devices_glfx_flip[i];
 	if(navigator.platform === device){
 		flip = true;
 		break;
@@ -617,11 +629,13 @@ var traitements = [
 				image_affiche.src = canvas_glfx.toDataURL("image/jpeg");
 			}
                         $('#loading_circle').hide();
-			console.log('appliqué');
-		}, function(event) {
-                        var traitement = event.data.traitement;
+			//console.log('appliqué');
+		}, function() {
+			$('#loading_circle').show();
+		//	canvas_glfx.height = image_modif.height;
+		//	canvas_glfx.width = image_modif.width;
 			
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(traitement.brightness, traitement.contrast).update();
+			canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
@@ -633,8 +647,9 @@ var traitements = [
                         } else {
                                 image_modif.src = canvas_glfx.toDataURL("image/jpeg");
                         }
+                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
 			setSelectedTraitement(null);
-
+			$('#loading_circle').hide();
 		}, flip),
 		new Traitement('Hue-Saturation', 'Hue / Saturation', function() {
 			this.addSlider('hue', 'Hue', -1, 1, 0, 0.01);
@@ -654,11 +669,12 @@ var traitements = [
 				image_affiche.src = canvas_glfx.toDataURL("image/jpeg");
 			}
                         $('#loading_circle').hide();
-			console.log('appliqué');
-		}, function(event) {
-                        var traitement = event.data.traitement;
-                        
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(traitement.hue, traitement.saturation).update();
+			//console.log('appliqué');
+		}, function() {
+			$('#loading_circle').show();
+		//	canvas_glfx.height = image_modif.height;
+		//	canvas_glfx.width = image_modif.width;
+			canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
@@ -670,7 +686,9 @@ var traitements = [
                         } else {
                                 image_modif.src = canvas_glfx.toDataURL("image/jpeg");
                         }
+                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
 			setSelectedTraitement(null);
+		$('#loading_circle').hide();
 		}, flip),
 		new Traitement('Tilt-Shift', 'Tilt Shift', function() {
 			this.addNub('start', 0.15, 0.75);
@@ -694,10 +712,12 @@ var traitements = [
 				//$('#image_url').text("this.start.x,"+this.start.x+" this.start.y,"+this.start.y+" this.end.x,"+this.end.x+" this.end.y "+this.end.y);
 			}
                         $('#loading_circle').hide();
-			console.log('appliqué');
-		}, function(event) {
-                        var traitement = event.data.traitement;
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(traitement.start.x, traitement.start.y, traitement.end.x, traitement.end.y, traitement.blurRadius, traitement.gradientRadius).update();
+			//console.log('appliqué');
+		}, function() {
+			$('#loading_circle').show();
+		//	canvas_glfx.height = image_modif.height;
+		//	canvas_glfx.width = image_modif.width;
+			canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
@@ -709,7 +729,9 @@ var traitements = [
                         } else {
                                 image_modif.src = canvas_glfx.toDataURL("image/jpeg");
                         }
+                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
 			setSelectedTraitement(null);
+			$('#loading_circle').hide();
 		}, flip)
 	];
 

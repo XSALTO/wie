@@ -24,7 +24,9 @@
 </head>
 <body>
 	<!-- Trigger the modal with a button -->
-	<button type="button" onclick='image_request("test")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">Open Modal</button>
+	<button type="button" onclick='load_image("http://static.guim.co.uk/sys-images/Guardian/Pix/pictures/2014/4/11/1397210130748/Spring-Lamb.-Image-shot-2-011.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">Petite Image</button>
+	<button type="button" onclick='load_image("https://cdn.photographylife.com/wp-content/uploads/2014/06/Nikon-D810-Image-Sample-6.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">Très Grande Image</button>
+	<button type="button" onclick='load_image("http://dev-vdubois.xsalto.com/image-editor/image/unnamed4.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">600x600</button>
 
 	<!-- Modal -->
 	<div id="myModal" class="modal fade" role="dialog" aria-labelledby="myModalLabel">
@@ -61,22 +63,12 @@
 				<div id="filtre" class="btn-group"></div>
 			</div>
 			<div id="traitement_zone" class="row center-block tab-pane fade in">
-<!--				<div id='traitement' class='row center-block btn-group'>
-					<button id="contrast" class="btn btn-primary" onclick='traitement(this.id)'>Contrast</button>
-				</div>
-				<div id="parametre_zone" class="row center-block">
-					<input type='range' id='parametre' min="-100" max="100" value="0" oninput="contrast(parseInt(this.value))" onchange="contrast(parseInt(this.value))" />
-				</div>
-				<div id="validation" class="row center-block btn-group">
-					<button id="valider" type="button" value="true" class="btn">Valider</button>
-					<button id="annuler" type="button" value="false" class="btn">Annuler</button>
-				</div>
--->			</div>
+			</div>
 		</div>
 	      </div>
 
 	      <div class="modal-footer">
-		<img id='loading_circle' src='image/loading_circle.gif' height='30' width='30'></img>
+		<img id='loading_circle' src='http://dev-vdubois.xsalto.com/image-editor/image/loading_circle.gif' height='30' width='30'></img>
 		<button id="upload" type="button" onclick="upload()" class="btn btn-info">Upload</button>
 		<a id="save" type="button" class="btn btn-success">Save</a>
 	        <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
