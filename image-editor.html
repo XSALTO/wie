@@ -1,66 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-
-	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>test</title>
-
-	 <!-- Latest compiled and minified CSS -->
-	<link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
-	<!-- jQuery library -->
-	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-	<!-- Latest compiled JavaScript -->
-	<script src="http://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
-
-	<script type="text/javascript" src="https://rawgit.com/meltingice/CamanJS/master/dist/caman.full.js"></script>
-	<script type="text/javascript" src="http://evanw.github.com/glfx.js/glfx.js"></script>
-	
-	<link  href="https://cdn.rawgit.com/fengyuanchen/cropper/v1.0.0/dist/cropper.min.css" rel="stylesheet">
-	<script src="https://cdn.rawgit.com/fengyuanchen/cropper/v1.0.0/dist/cropper.min.js"></script>
-	<link rel="stylesheet" href="image-editor.css">
-
-	<script src="image-editor.js"></script>
-</head>
-<body>
-	<!-- Trigger the modal with a button -->
-	<button type="button" onclick='load_image("http://static.guim.co.uk/sys-images/Guardian/Pix/pictures/2014/4/11/1397210130748/Spring-Lamb.-Image-shot-2-011.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">Petite Image</button>
-	<button type="button" onclick='load_image("https://cdn.photographylife.com/wp-content/uploads/2014/06/Nikon-D810-Image-Sample-6.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">Très Grande Image</button>
-	<button type="button" onclick='load_image("http://dev-vdubois.xsalto.com/image-editor/image/unnamed4.jpg")' class="btn btn-danger btn-lg" data-toggle="modal" data-target="#myModal">600x600</button>
-
-	<!-- Modal -->
-	<div id="myModal" class="modal fade" role="dialog" aria-labelledby="myModalLabel">
-	  <div class="modal-dialog modal-lg">
-
-	    <!-- Modal content-->
+	<div class="modal-dialog modal-lg" role="document">
 	    <div class="modal-content">
 	      <div class="modal-header">
 	        <button type="button" class="close" data-dismiss="modal">&times;</button>
-	        <h4 class="modal-title">Modal Header</h4>
+	        <h4 class="modal-title">Image Editor</h4>
 	      </div>
 
 	      <div class="modal-body">
-	        <p id = "image_url">Some text in the modal.</p>
 		<div id="image_zone" class="row center-block"></div>
 		<ul id="famille" class="center-block nav nav-pills nav-justified">	
-			<li><a data-toggle="tab" onclick="annuler();crop()" href="#crop">Recadrer</a></li>
-			<li><a data-toggle="tab" onclick="annuler()" href="#filtre_zone">Filtre</a></li>
-			<li><a onclick="annuler()" href="#">Amélioration auto</a></li>
-			<li><a data-toggle="tab" onclick="annuler()" href="#traitement_zone">Traitement image</a></li>
-			<li><a alt="Afficher l\'image d\'origine" title="Afficher l\'image d\'origine" onclick="$('#image_zone #image').cropper('destroy');affiche_base()" href="#">Comparer</a></li>
-			<li><a alt="Revenir à l\'original" title="Revenir à l\'original" onclick="annuler();reset()" href="#">Tout annuler</a></li>
+			<li><a id='li_crop' data-toggle="tab" href="#crop">Recadrer</a></li>
+			<li><a id='li_filtre' data-toggle="tab" href="#filtre_zone">Filtre</a></li>
+		<!--	<li><a onclick="annuler()" href="#">Amélioration auto</a></li>-->
+			<li><a id='li_traitement' data-toggle="tab" href="#traitement_zone">Traitement image</a></li>
+			<li><a id='li_comparer' href="#">Comparer</a></li>
+			<li><a id='li_reset' href="#">Tout annuler</a></li>
 		</ul>
+		<hr/>
 		<div class="tab-content">
 			<div id="crop" class="row center-block tab-pane fade in btn-group">
 				<button id="valider" type="button" value="true" class="btn">Valider</button>
 				<button id="annuler" type="button" value="false" class="btn">Annuler</button>
 			</div>
 			<div id="filtre_zone" class="row center-block tab-pane fade in">
-				<div id="validation" class="row center-block btn-group">
-					<button id="valider" type="button" value="true" class="btn">Valider</button>
-					<button id="annuler" type="button" value="false" class="btn">Annuler</button>
-				</div>
 				<div id="filtre" class="btn-group"></div>
+				<div id="validation" class="row center-block btn-group"></div>
 			</div>
 			<div id="traitement_zone" class="row center-block tab-pane fade in">
 			</div>
@@ -68,15 +31,13 @@
 	      </div>
 
 	      <div class="modal-footer">
-		<img id='loading_circle' src='http://dev-vdubois.xsalto.com/image-editor/image/loading_circle.gif' height='30' width='30'></img>
-		<button id="upload" type="button" onclick="upload()" class="btn btn-info">Upload</button>
-		<a id="save" type="button" class="btn btn-success">Save</a>
-	        <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
-	      </div>
+		<div id='information'>
+		  <img id='loading_circle' height='30' width='30'></img>
+		</div>
+		<div id='button'>
+		  <a id="save" type="button" class="btn btn-success">Save</a>
+	          <button type="button" class="btn btn-danger" data-dismiss="modal">Close</button>
+	     	</div>
+	     </div>
 	    </div>
-
-  	 </div>
 	</div>
-	<canvas id='canvas_test'/>
-</body>
-</html>

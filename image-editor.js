@@ -1,9 +1,34 @@
-//Caman.DEBUG = ('console' in window);
-
+(function ($){
 //
 //Image de grande taille tronqué avec webgl sur chromium, fonctionnel sur firefox
 //Erreur: out of range
 //
+//TODO ajouter bootstrap popover (affiche petit message)
+//TODO ajouter préfixe aux variable (ex: ie-varibale)
+//TODO ajouter progressBar pour upload
+
+
+//Chargement de tout les autres scripts necessaire à partir du path de celui-ci lorsque tout les scripts ont été chargé
+$( "script" ).on('load', function(){
+    var filename = 'image-editor';
+    var scripts = document.getElementsByTagName('script');
+    if (scripts && scripts.length > 0) {
+        for (var i=0;i< scripts.length;i++) {
+            if (scripts[i].src &&  scripts[i].src.match(new RegExp(filename+'\\.js$'))) {
+		var dir = scripts[i].src.replace(new RegExp('(.*)'+filename+'\\.js$'), '$1');
+		//bloquer les event jquery pour charger en avance glfx(necessaire a l'init)
+		$.holdReady( true );
+		$.getScript( dir+"/dependence/glfx.js", function() {
+	       		$.holdReady( false );
+	       	});
+		$.getScript(dir+"/dependence/cropper.min.js");
+		$.getScript(dir+"/dependence/caman.full.js");
+		defaults.path = dir;
+		break;
+            }
+        }
+    }
+});
 
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
@@ -11,9 +36,17 @@ var image_affiche = new Image();//petite taille préview (pour traitement CamanJ
 var canvas_traitement = document.createElement('canvas');//pour effectuer les traitements de filtre
 var filtre_utilise = null;
 var ratio_image;
-$.fn.cropper;
-        var canvas_glfx = null;
-	var texture = null;
+var canvas_glfx = null;
+var texture = null;
+var settings = {};
+var defaults = {
+	urlImage: null,
+	urlServeur: null,
+	formatImageSave: 'png',
+	imageName: 'image',
+	path: "",
+	modal: null};
+var format_possible = ['png','jpeg','webp'];
 image_affiche.id = "image";
 image_affiche.className = "img-responsive center-block";
 image_base.className = "img-responsive center-block"; 
@@ -52,46 +85,62 @@ var filtres = [//	"normal",
 	"hemingway",
 	"concentrate" ];
 
-this.onload = function(){
-	// Try to get a WebGL canvas
-	if (!window.fx) {
-		$('#image_zone').html('glfx.js n\'a pas chargé.');
-		alert('glfx.js n\'a pas chargé.');
-		return;
-	}
-	try {
-		canvas_glfx = fx.canvas();
-	} catch (e) {
-		$('#image_zone').html('Désolé, ce navigateur ne suporte pas WebGL');
-		alert('Désolé, ce navigateur ne suporte pas WebGL');
-		return;
-	}
-	$('#validation').hide();
-};
-
-
-function image_request(demande){
-
-        //$('#filtre button').removeClass('disabled');
-        //$('#filtre #normal').addClass('disabled');
-
-        $('#famille li').removeClass("active");
-        $('.tab-content div').removeClass("active");
-
-	/*delete image_base, image_modif, image_affiche; //pour eviter de garder une ancienne image traité
-*/	$('#loading_circle').show();
-	$('#image_url').empty();
-	$('#image_url').append('<div> demande:'+demande+'</div>');
-	$('#image_zone').empty();
-	$.ajax({
-                type: 'GET',
-                url: 'test.txt',
-		cachngse: false,
-                success: function(msg){
-			load_image(msg);
-                }
+$.fn.imageEditor = function(option){ 
+	var zone = null;
+	this.filter('div').each(function(){
+		zone = $(this);
 	});
-}
+	$(document).ready(function(){
+
+		if(canvas_glfx != null){
+			return;
+		}
+		// Try to get a WebGL canvas
+		if (!window.fx) {
+			alert('glfx.js n\'a pas chargé.');
+			return;
+		}
+		try {
+			canvas_glfx = fx.canvas();
+		} catch (e) {
+			alert('Désolé, ce navigateur ne suporte pas WebGL');
+			return;
+		}
+		settings = $.extend({},defaults,option);
+
+		if(zone==null){
+			zone = 'body';
+		}
+		var id = 'modalImageEditor';
+		var i = 0;
+		while($('#'+id+i).length){
+			i++;
+		}
+		var modalAttr = {
+			 main:{
+				class: 'modal fade',
+				id: id+i,
+				tabindex: '-1',
+				role: 'dialog',
+				'aria-labelledby': 'modalImageEditor',
+				'data-backdrop': 'static'
+			}, dialog: {
+				class: 'modal-dialog modal-lg',
+				role: 'document'
+			}, content: {
+				class: 'modal-content'
+			} };
+		settings.modal = $('<div />').attr(modalAttr.main).appendTo(zone);
+		var dialog = $('<div />').attr(modalAttr.dialog).appendTo(settings.modal);
+		var content = $('<div />').attr(modalAttr.content).appendTo(dialog);
+
+		//Affichage du modal par défaut
+		$('<div />').attr({class: 'modal-body'}).text('Erreur').appendTo(content);
+		var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content)
+		$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
+
+	});
+};
 
 function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
     var imgWidth = img.width, 
@@ -132,7 +181,6 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
     var rounds = 2;
     var roundRatio = ratio * rounds;
     for (var i = 1; i <= rounds; i++) {
-      //  //console.log("Step: "+i);
 
         // tmp
         canvasCopy.width = imgWidth * roundRatio / i;
@@ -158,60 +206,99 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
 	return ratio;
 }
 
-function load_image(url){
+$.fn.editImage = function(options){
+
+
 	if(canvas_glfx == null) return;
-        $('#famille li').removeClass("active");
-        $('.tab-content div').removeClass("active");
-	$('#loading_circle').show();
-	$('#image_url').empty();
-	$('#image_zone').empty();
-	image_affiche.onload = function () { //premier chargement de l'image affichée
-		$('#image_zone').empty().append(image_affiche);
-		$('#loading_circle').hide();
-		image_affiche.onload = null;
-		reset();
-	};
 
-	image_modif.onload = function(){
+	settings = $.extend({}, defaults, settings, options);
 
-		ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
-		image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
-
-		canvas_glfx.height = canvas_traitement.height;
-		canvas_glfx.width = canvas_traitement.width;
-		texture = canvas_glfx.texture(canvas_traitement);
-
-		$('#save').attr({download:"image.jpeg",target: '_blank',href  : image_modif.src });
-		//image_modif.onload = null;
-	};
-
-	image_base.src = url; //"image/unnamed3.jpg";
-	image_modif.src = url;
-	$('#image_url').empty().text('url charge:'+url);
-
-	
-	var erreur = function () {
-		$('#image_url').empty().html('<p class="text-center">That image is not available('+url+').</p>');
+	var format_ok = false;
+	for(var i = 0; i < format_possible.length; i++){
+		if (settings.formatImageSave == format_possible[i]){
+			format_ok = true;
+			break;
+		}
 	}
-	image_base.error = erreur;
-	image_affiche.error = erreur;
+	if(!format_ok){
+		settings.formatImageSave = 'png';
+	}
+	settings.modal.modal().load(settings.path+'image-editor.html'/*+'?'+(new Date().getTime())*/, function(e){
+		$('.modal-title', settings.modal).text('Image Editor - '+settings.imageName+'.'+settings.formatImageSave);
+		$('#loading_circle', settings.modal).attr({src: settings.path+'/dependence/loading_circle.gif'});
+		$('#famille li',settings.modal).removeClass("active");
+		$('.tab-content div',settings.modal).removeClass("active");
+		$('#loading_circle',settings.modal).show();
+		$('#image_url',settings.modal).empty();
+		$('#image_zone',settings.modal).empty();
+		image_affiche.onload = function () { //premier chargement de l'image affichée
+			$('#image_zone',settings.modal).empty().append(image_affiche);
+			$('#loading_circle',settings.modal).hide();
+			image_affiche.onload = null;
+			reset();
+		};
 
-	$('#image_zone').empty().html('<p class="text-center">Loading...</p>');
+		image_modif.onload = function(){
+
+			ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
+			image_affiche.src = canvas_traitement.toDataURL("image/png");
+
+			canvas_glfx.height = canvas_traitement.height;
+			canvas_glfx.width = canvas_traitement.width;
+			texture = canvas_glfx.texture(image_affiche);
+		};
+
+		var erreur = function () {
+			$('#image_zone',settings.modal).empty().html('<p class="text-center">That image is not available('+settings.urlImage+').</p>');
+			$('#loading_circle',settings.modal).hide();
+		}
+		image_base.onerror = erreur;
+		image_affiche.onerror = erreur;
+
+		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
+		image_modif.src = settings.urlImage;
+		$('#li_crop',settings.modal).on('click',function(){annuler();crop();});
+		$('#li_filtre',settings.modal).on('click',function(){annuler()});
+		$('#li_traitement',settings.modal).on('click',function(){annuler()});
+		$('#li_comparer',settings.modal).on('click',function(){$("#image_zone #image",settings.modal).cropper('destroy');affiche_base();});
+		$('#li_reset',settings.modal).on('click',function(){annuler();reset()});
+		$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
+
+		$('#image_zone',settings.modal).empty().html('<p class="text-center">Loading...</p>');
+
+		//button save
+		var a = $('.modal-footer #button #save').attr({'target':'_blank'});
+		a.on('click',function(e){
+			$(this).attr({'href': image_modif.src, 'download': settings.imageName+"."+settings.formatImageSave});
+		});
+		
+		//button d'upload
+		if(settings.urlServeur != null){
+			$('<button />').attr({id:'upload', type:'button', class: 'btn'})
+			.text('Upload')
+			.on('click',upload)
+			.prependTo('.modal-footer #button', settings.modal);
+		}
+	});
+
+}
+
+function download(filename, text) {
 }
 
 function affiche_base(){
-	$('#loading_circle').show();
+	$('#loading_circle',settings.modal).show();
 	var canvas_base = document.createElement('canvas');
 	resizeCanvasImage(image_base, canvas_base, 550, 550);
-	image_affiche.src = canvas_base.toDataURL("image/jpeg");	
+	image_affiche.src = canvas_base.toDataURL("image/png");	
 	setTimeout(function(){
-		image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
-		$('#loading_circle').hide();
+		image_affiche.src = canvas_traitement.toDataURL("image/png");
+		$('#loading_circle',settings.modal).hide();
 	}, 1000);
 }
 
 function filtreValidation(etat){//valider les traitements sur taille réel ou non
-       	$('#loading_circle').show();
+       	$('#loading_circle',settings.modal).show();
 	if(etat == 'true' && filtre_utilise != null){
 		canvas_reel = document.createElement('canvas');
 		canvas_reel.height = image_modif.height;
@@ -220,12 +307,13 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 		Caman(canvas_reel, function(){
 			this[filtre_utilise]();
 			this.render(function(){
-				image_modif.src = canvas_reel.toDataURL("image/jpeg");
-                        	$('#loading_circle').hide();
+				image_modif.src = canvas_reel.toDataURL("image/"+settings.formatImageSave,1);
 				filtre_utilise = null;
 				$(canvas_traitement).remove();
 				delete canvas_reel, canvas_traitement;
 				canvas_traitement = document.createElement('canvas'); //pour ne pas perdre les filtre au preview avec this.revert()
+				$('#filtre_zone #filtre',settings.modal).show();
+                        	$('#loading_circle',settings.modal).hide();
 			});
 		});
 	} else if (filtre_utilise != null){
@@ -233,21 +321,22 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 			this.revert();
 			this.render(function(){
 				filtre_utilise = null;
-				image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
-                        	$('#loading_circle').hide();
+				image_affiche.src = canvas_traitement.toDataURL("image/png");
+                        	$('#loading_circle',settings.modal).hide();
+				$('#filtre_zone #filtre',settings.modal).show();
 			});
 		});
 	} else {
-		$('#loading_circle').hide();
+		$('#loading_circle',settings.modal).hide();
+				$('#filtre_zone #filtre',settings.modal).show();
 	}
 
-	$('#filtre_zone #validation').hide();
-	$('#filtre_zone #filtre').show();
+	$('#filtre_zone #validation',settings.modal).hide();
 	
 }
 
 function camanFiltre(filtre){//pour le préview
-	$('#loading_circle').show();
+	$('#loading_circle',settings.modal).show();
 	Caman(canvas_traitement, function(){
 		if(filtre == "normal"){
 			this.revert();
@@ -258,11 +347,10 @@ function camanFiltre(filtre){//pour le préview
 			this[filtre]();
 		}
 		this.render(function(){
-			image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
-			$('#filtre_zone #validation button').attr({onclick:"filtreValidation(this.value)"});
-			$('#filtre_zone #filtre').hide();
-			$('#filtre_zone #validation').show();
-			$('#loading_circle').hide();
+			image_affiche.src = canvas_traitement.toDataURL("image/png");
+			$('#filtre_zone #filtre',settings.modal).hide();
+			$('#filtre_zone #validation',settings.modal).show();
+			$('#loading_circle',settings.modal).hide();
 		});
 	});
 }
@@ -280,10 +368,12 @@ function slider_change(slider_id, traitement_id){
 }
 
 function reset(){
-	$('#loading_circle').show();
-	$('#filtre').empty();
-	$('#filtre_zone #validation').empty();
-	$('#traitement_zone').empty();
+	$(window).off('resize');
+	$(window).off('orientationchange');
+	$('#loading_circle',settings.modal).show();
+	$('#filtre',settings.modal).empty();
+	$('#filtre_zone #validation',settings.modal).empty();
+	$('#traitement_zone',settings.modal).empty();
 	$(canvas_traitement).remove();
 	delete canvas_traitement;
 	canvas_traitement = document.createElement('canvas');
@@ -292,66 +382,88 @@ function reset(){
 	canvas_glfx = fx.canvas();
 	image_modif.src = image_base.src;//image_affiche change à onload de image_modif
 	filtre_utilise = null;
-	setSelectedTraitement(null);
 
 	/////////
 	//  Filtres
 	/////////
         for(var i = 0; i < filtres.length; i++){
 		var filtre = filtres[i];
-                $('#filtre').append('<button type="button" class="btn" id="'+filtre+'">'+filtre+'</button>');
+		$('<button />').attr({type:"button", class:"btn", id:filtre})
+		.text(filtre)
+		.appendTo('#filtre',settings.modal)
+		.on('click', function(){camanFiltre(this.id)});
         }
-	$('#filtre_zone #validation').append('<button id="valider" type="button" value="true" class="btn" onclick="filtreValidation(this.value)">Valider</button>' +
-	'<button id="annuler" type="button" value="false" class="btn" onclick="filtreValidation(this.value)">Annuler</button>');
+	$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
+	.text("Valider")
+	.appendTo('#filtre_zone #validation',settings.modal)
+	.on('click',function(){filtreValidation(this.value)});
 
-        $('#filtre button').click(function(e){
-                camanFiltre(this.id);
-        });
-
-        /////////
+	$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
+	.text("Annuler")
+	.appendTo('#filtre_zone #validation',settings.modal)
+	.on('click',function(){filtreValidation(this.value)})
+	.parent().hide();
+        ///////////
         //  Traitements
         /////////
-	$('#traitement_zone').append('<ul id="traitement" class="center-block nav nav-pills nav-justified"></ul');
-	$('#traitement_zone').append('<div id="traitement_parametre" class="tab-content"></div>');
+	$('<ul />').attr({id:"traitement", class:"center-block nav nav-pills nav-justified"}).appendTo('#traitement_zone',settings.modal);
+	$('<ul />').attr({id:"traitement_parametre", class:"tab-content"}).appendTo('#traitement_zone',settings.modal);
        for(var i = 0; i < traitements.length; i++){
 		var traitement = traitements[i];
 		
-               $('#traitement').append('<li><a data-toggle="tab" href="#'+traitement.id+'" onclick="setSelectedTraitement(\''+traitement.id+'\')">'+traitement.label+'</a></li>');
+		var li = $('<li />').appendTo('#traitement',settings.modal);
+		$('<a />').attr({'data-toggle':"tab", href:'#'+traitement.id})
+		.text(traitement.label)
+		.on('click',{traitement:traitement},function(event){
+			var traitement = event.data.traitement
+		setSelectedTraitement(traitement.id)})
+		.appendTo(li);
 
                 /////////
                 //  Sliders
                 ///////// 
-		var html = '<div id="'+traitement.id+'" class="row center-block tab-pane fade in">';
+		if(traitement.sliders.length){
+			var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
+			var table = $('<table />').attr({class:'table'}).appendTo(div_traitement);
+		}
                 for(var j = 0; j < traitement.sliders.length; j++){
 			var slider = traitement.sliders[j];
-                        html += '<input type="range" id="'+slider.id+'" />';
-                }
-                html += '</div>';
-                $('#traitement_parametre').append(html);
-                for(var j = 0; j < traitement.sliders.length; j++){
-			var slider = traitement.sliders[j];
+			var tr = $('<tr />').appendTo(table);
+			$('<th />').text(slider.label).appendTo(tr);
                         traitement[slider.id] = slider.value;
-                        $('#'+slider.id).attr({
-                                'oninput': "slider_change(this.id,'"+traitement.id+"')",
-                                'onchange': "slider_change(this.id,'"+traitement.id+"')",
+			var th = $('<th />').appendTo(tr);
+                        $('<input />').attr({
+				type:"range", 
+				id:slider.id,
                                 min: slider.min,
                                 max: slider.max,
                                 value: slider.value,
                                 step: slider.step
-                        });
-
+                        }).on('input',{slider:slider, traitement:traitement}, function(event){
+				var slider = event.data.slider;
+				var traitement = event.data.traitement;
+				slider_change(slider.id,traitement.id)})
+                        .on('change',{slider:slider, traitement:traitement}, function(event){
+				var slider = event.data.slider;
+				var traitement = event.data.traitement;
+				slider_change(slider.id,traitement.id)})
+			.appendTo(th);
                 }
 
 
 		//////////
 		//  Valider/Annuler
 		//////////
-		$('#'+traitement.id).append('<button id="valider" type="button" value="true" class="btn">Valider</button>'+
-		'<button id="annuler" type="button" value="false" class="btn">Annuler</button>');
-		$('#'+traitement.id+' #valider').on('click',{traitement:traitement},function(event){
+		$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
+		.text('Valider')
+		.appendTo('#'+traitement.id,settings.modal)
+		.on('click',{traitement:traitement},function(event){
 			event.data.traitement.validate();
 		});
-		$('#'+traitement.id+' #annuler').on('click',annuler);
+		$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
+		.text('Annuler')
+		.appendTo('#'+traitement.id,settings.modal)
+		.on('click',annuler);
         
 
 	        /////////
@@ -364,30 +476,28 @@ function reset(){
 			var y = nub.y * canvas_glfx.height;
 			traitement[nub.id] = { x: x, y: y };
 			if(nub_present == false){
-				//$('#image_zone').append('<div id="nubs"></div>');
 				nub_present = true;
 			}
 		}
 	
 		if (traitement.reset){
-				traitement.reset();
+			traitement.reset();
 		}
 	}
 
-	$('#loading_circle').hide();
+	$('#loading_circle',settings.modal).hide();
 }
 
 function setSelectedTraitement(traitement_id){
-	$('#image_zone .nub').remove();
-	$('#traitement_parametre > div').removeClass('active');
-	$('#traitement > li').removeClass('active');
-	$('#image_zone .nub').remove();
-	image_affiche.src = canvas_traitement.toDataURL('image/jpeg');
+	$('#image_zone .nub',settings.modal).remove();
+	$('#traitement_parametre > div',settings.modal).removeClass('active');
+	$('#traitement > li',settings.modal).removeClass('active');
+	$('#image_zone .nub',settings.modal).remove();
+	image_affiche.src = canvas_traitement.toDataURL('image/png');
 	if(traitement_id == null){
 		return;
 	}
-	$('#'+traitement_id).addClass('active');
-//	image_affiche.src = canvas_traitement.toDataURL('image/jpeg');
+	$('#'+traitement_id,settings.modal).addClass('active');
 	var traitement;
 	for (var i = 0; i < traitements.length; i++){
 		traitement = traitements[i];
@@ -412,59 +522,49 @@ function setSelectedTraitement(traitement_id){
 		
 		var x = nub.x * canvas_glfx.width;
 		var y = nub.y * canvas_glfx.height;
-		$('<div class="nub" id="'+ nub.id +'"></div>').appendTo($('#image').parent());
-		image_position.screen.left =  ($('#'+nub.id).parent().width() - $('#image').width())/2 + $('#'+nub.id).parent().offset().left;
-		image_position.screen.top = ($('#'+nub.id).parent().height() - $('#image').height())/2 + $('#'+nub.id).parent().offset().top;
-		image_position.modal.left = image_position.screen.left - ($('#image_zone').offset().left - $('#'+nub.id).parent().position().left);
-		image_position.modal.top = image_position.screen.top - ($('#'+nub.id).parent().offset().top - $('#'+nub.id).parent().position().top);
+		$('<div class="nub" id="'+ nub.id +'"></div>').appendTo($('#image',settings.modal).parent());
+		image_position.screen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
+		image_position.screen.top = ($('#'+nub.id,settings.modal).parent().height() - $('#image',settings.modal).height())/2 + $('#'+nub.id,settings.modal).parent().offset().top;
+		image_position.modal.left = image_position.screen.left - ($('#image_zone',settings.modal).offset().left - $('#'+nub.id,settings.modal).parent().position().left);
+		image_position.modal.top = image_position.screen.top - ($('#'+nub.id,settings.modal).parent().offset().top - $('#'+nub.id,settings.modal).parent().position().top);
 
 		/////////
 		//  Event pour le déplacement des nubs
 		/////////
 
 		var ontouchmove = (function(event) {////	TACTILE
-			/*image_position.screen.left =  ($('#image_zone').width() - $('#image').width())/2 + $('#image_zone').offset().left;
-		        image_position.screen.top = ($('#image_zone').height() - $('#image').height())/2 + $('#image_zone').offset().top;
-		        image_position.modal.left = image_position.screen.left - ($('#image_zone').offset().left - $('#image_zone').position().left);
-		        image_position.modal.top = image_position.screen.top - ($('#image_zone').offset().top - $('#image_zone').position().top);
-*/
 			var e = event.originalEvent;
 			var offset = $(event.target).offset();
                         var nub = event.data.nub;
                         var position_actuel_x = offset.left + $(nub).width()/2 - image_position.screen.left;
                         var position_actuel_y = offset.top + $(nub).height()/2 - image_position.screen.top;
-                        var x = (e.touches[0].pageX - image_position.screen.left)*(canvas_glfx.width/$('#image').width());
-                        var y = (e.touches[0].pageY - image_position.screen.top)*(canvas_glfx.height/$('#image').height());
+                        var x = (e.touches[0].pageX - image_position.screen.left)*(canvas_glfx.width/$('#image',settings.modal).width());
+                        var y = (e.touches[0].pageY - image_position.screen.top)*(canvas_glfx.height/$('#image',settings.modal).height());
 
-                        //console.log("event.pageX:"+e.touches[0].pageX+", event.pageY:"+e.touches[0].pageY+", x:"+ x +", y:"+ y);
                         if(x<0) x = 0;
                         if(x>canvas_glfx.width) x = canvas_glfx.width;
                         if(y<0) y = 0;
                         if(y>canvas_glfx.height) y = canvas_glfx.height;
 
-			$('#' + nub.id).css({ left: (x*($('#image').width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image').height()/canvas_glfx.height))+ image_position.modal.top});
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
 
 			traitement[nub.id] = { x: x, y: y };
-                        //traitement.update();
+
+			// activer ou désactiver le traitement continue pour les ecrans tactiles
+			//traitement.update();
 		});
 		var onmousemove = (function(event) {////	SOURIS
-			/*image_position.screen.left =  ($('#image_zone').width() - $('#image').width())/2 + $('#image_zone').offset().left;
-                        image_position.screen.top = ($('#image_zone').height() - $('#image').height())/2 + $('#image_zone').offset().top;
-                        image_position.modal.left = image_position.screen.left - ($('#image_zone').offset().left - $('#image_zone').position().left);
-                        image_position.modal.top = image_position.screen.top - ($('#image_zone').offset().top - $('#image_zone').position().top);
-*/
 			var offset = $(event.target).offset();
 			var nub = event.data.nub;
-			var x = (event.pageX - image_position.screen.left)*(canvas_glfx.width/$('#image').width());
-			var y = (event.pageY - image_position.screen.top)*(canvas_glfx.height/$('#image').height());
+			var x = (event.pageX - image_position.screen.left)*(canvas_glfx.width/$('#image',settings.modal).width());
+			var y = (event.pageY - image_position.screen.top)*(canvas_glfx.height/$('#image',settings.modal).height());
 
-			////console.log("nub.id:"+nub.id+", event.paxeX:"+event.pageX+", event.pageY:"+event.pageY+", position_actuel_x:"+position_actuel_x+", position_actuel_y:"+position_actuel_y+", x:"+ x +", y:"+ y);
                         if(x<0) x = 0;
                         if(x>canvas_glfx.width) x = canvas_glfx.width;
                         if(y<0) y = 0;
                         if(y>canvas_glfx.height) y = canvas_glfx.height;
 			
-			$('#' + nub.id).css({ left: (x*($('#image').width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image').height()/canvas_glfx.height))+ image_position.modal.top});			
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});			
 			traitement[nub.id] = { x: x, y: y };
 			traitement.update();
 		});
@@ -474,79 +574,69 @@ function setSelectedTraitement(traitement_id){
 		////////
 
 		//	TACTILE
-		//$('#' + nub.id).on('touchmove',{nub:nub},ontouchmove);
-		$('#' + nub.id).on('touchstart',function(event){
-			//console.log('drag activated');
-			//$('#'+ event.target.id).on('mousemove',onmousemove);
+		$('#' + nub.id,settings.modal).on('touchstart',function(event){
 			$('body').on('touchmove',{nub:event.target},ontouchmove);
 		});
 		$('body').on('touchend', function(event){
-			//console.log('drag disactivated');
 			$('body').off('touchmove',ontouchmove);
 			traitement.update();
 		});
 
 		//	SOURIS
-		$('#' + nub.id).mousedown(function(event){
-			//console.log('drag activated');
-			//$('#'+ event.target.id).on('mousemove',onmousemove);
+		$('#' + nub.id,settings.modal).mousedown(function(event){
 			$('body').on('mousemove',{nub:event.target},onmousemove);
 		});
 		$('body').mouseup(function(event){
-			//console.log('drag disactivated');
 			$('body').off('mousemove',onmousemove);
 		});
+
 		var actualisePos = function(event){
 			var traitement = event.data.traitement;
 			var nub = event.data.nub;
 			var x = traitement[nub.id].x;
 			var y = traitement[nub.id].y;
-                        image_position.screen.left =  ($('#'+nub.id).parent().width() - $('#image').width())/2 + $('#'+nub.id).parent().offset().left;
-                        image_position.screen.top = ($('#'+nub.id).parent().height() - $('#image').height())/2 + $('#'+nub.id).parent().offset().top;
-                        image_position.modal.left = image_position.screen.left - ($('#image_zone').offset().left - $('#'+nub.id).parent().position().left);
-                       	image_position.modal.top = image_position.screen.top - ($('#'+nub.id).parent().offset().top - $('#'+nub.id).parent().position().top);
-			$('#' + nub.id).css({ left: (x*($('#image').width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image').height()/canvas_glfx.height))+ image_position.modal.top});
+                        image_position.screen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
+                        image_position.screen.top = ($('#'+nub.id,settings.modal).parent().height() - $('#image',settings.modal).height())/2 + $('#'+nub.id,settings.modal).parent().offset().top;
+                        image_position.modal.left = image_position.screen.left - ($('#image_zone',settings.modal).offset().left - $('#'+nub.id,settings.modal).parent().position().left);
+                       	image_position.modal.top = image_position.screen.top - ($('#'+nub.id,settings.modal).parent().offset().top - $('#'+nub.id,settings.modal).parent().position().top);
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
 		};
 
 		$(window).on('orientationchange',{nub:nub,traitement:traitement},actualisePos);
 		$(window).on('resize',{nub:nub,traitement:traitement},actualisePos);
 
 
-		$('#' + nub.id).css({ left: (x*($('#image').width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image').height()/canvas_glfx.height))+ image_position.modal.top});
+		$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
 		traitement[nub.id] = { x: x, y: y };
 	}
 	traitement.update();
 }
 
 function crop(){// JCrop
-	$('#loading_circle').show();
-	$('#image_zone #image').cropper({
-		aspectRatio: image_modif.width/image_modif.height, //forcer l'aspect du crop à celui de l'image originale
-		crop: function(e) {
-			// Output the result data for cropping image.
- 		}		
+	$('#loading_circle',settings.modal).show();
+	$('#image_zone #image',settings.modal).cropper({
+		aspectRatio: image_modif.width/image_modif.height //forcer l'aspect du crop à celui de l'image originale
 	});
-	$('#crop button').attr({onclick:"cropValidation(this.value)"});
-        $('#loading_circle').hide();
+        $('#loading_circle',settings.modal).hide();
 }
 
 function cropValidation(etat){
-	$('#loading_circle').show();
+	$('#loading_circle',settings.modal).show();
 	if(etat == "true"){
 		var data = $("#image_zone #image").cropper("getData");//get pos and crop preview et reel
 		canvas_traitement.width = data.width / ratio_image;		
 		canvas_traitement.height = data.height / ratio_image;
 		canvas_traitement.getContext("2d").drawImage(image_modif, -data.x/ratio_image,-data.y/ratio_image);
-		image_modif.src = canvas_traitement.toDataURL("image/jpeg");
-		//image_affiche.src = canvas_traitement.toDataURL("image/jpeg");
+		image_modif.src = canvas_traitement.toDataURL("image/"+settings.formatImageSave,1);
+		//Problème de recadrage sur canvas_glfx
 		$(canvas_glfx).remove();
 		delete canvas_glfx;
 		canvas_glfx = fx.canvas();
 	}
-	$('#image_zone #image').cropper("destroy");
-	$('#famille li').removeClass("active");
-	$('.tab-content div').removeClass("active");
-        $('#loading_circle').hide();
+	$('#image_zone #image',settings.modal).cropper("destroy");
+	$('#famille li',settings.modal).removeClass("active");
+	$('.tab-content div',settings.modal).removeClass("active");
+        $('#loading_circle',settings.modal).hide();
 }
 
 function annuler(){
@@ -556,26 +646,39 @@ function annuler(){
 }
 
 function upload(){
-	$('#loading_circle').show();
+	$('#loading_circle',settings.modal).show();
 	var canvas_rendu_final = document.createElement('canvas');
 	canvas_rendu_final.width = image_modif.width;
 	canvas_rendu_final.height = image_modif.height;
 	canvas_rendu_final.getContext('2d').drawImage(image_modif,0,0);
        
-	var url = canvas_rendu_final.toDataURL("image/jpeg",1);
-        url = url.replace(/^data:image\/(png|jpeg);base64,/,"");
+	var url = canvas_rendu_final.toDataURL("image/"+settings.formatImageSave,1);
+	var format = "";
+	for(var i = 0; i < format_possible.length; i++){
+		format += format_possible[i];
+		if(i != format_possible.length - 1){
+			format += '|';
+		}
+	}
+	var regex = new RegExp("^data:image/("+format+");base64,");
+        url = url.replace(regex,"");
+	$(regex).remove();
+	delete regex;
+	var progression = function(evt){
+		var progressBar = evt.data.progressBar;
+	};
+	$.ajax({
+		type: 'POST',
+		url: settings.urlServeur,
+		data: { "imageData" : url, "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName },
+		success: function(msg){
+			$('#loading_circle',settings.modal).hide();
+			console.log(msg);
+		}
+	});
 
-        $.ajax({
-                type: 'POST',
-                url: 'upload.php',
-                data: { "imageData" : url },
-                success: function(msg){
-                        $('#loading_circle').hide();
-                }
-        });
-
-	delete canvas_rendu_final;
-}
+		delete canvas_rendu_final;
+	}
 
 ////////////////////
 //	GLFX	  //
@@ -612,83 +715,80 @@ for(var i = 0; i < devices_glfx_flip.length; i++){
 
 var traitements = [
 		new Traitement('Brightness-Contrast', 'Luminositée / Contrast', function(){
-			this.addSlider('brightness', 'Luminosité', -1, 1, 0, 0.1);
+			this.addSlider('brightness', 'Luminositée', -1, 1, 0, 0.1);
 			this.addSlider('contrast', 'Contrast', -1, 1, 0, 0.1);
 		}, function() {
-                        $('#loading_circle').show();
+                        $('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(texture).brightnessContrast(this.brightness, this.contrast).update();
 			if(this.flip_canvas){
 				var canvas_flip = document.createElement('canvas');
 				canvas_flip.height = canvas_glfx.height;
 				canvas_flip.width = canvas_glfx.width;
 				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/jpeg");
+				image_affiche.src = canvas_flip.toDataURL("image/png");
 				$(canvas_flip).remove();
 				delete canvas_flip;
 			} else {
-				image_affiche.src = canvas_glfx.toDataURL("image/jpeg");
+				image_affiche.src = canvas_glfx.toDataURL("image/png");
 			}
-                        $('#loading_circle').hide();
-			//console.log('appliqué');
+                        $('#loading_circle',settings.modal).hide();
 		}, function() {
-			$('#loading_circle').show();
-		//	canvas_glfx.height = image_modif.height;
-		//	canvas_glfx.width = image_modif.width;
-			
+			$('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
                                 canvas_flip.width = canvas_glfx.width;
                                 canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/jpeg");
+                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
                                 $(canvas_flip).remove();
                                 delete canvas_flip;
                         } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/jpeg");
+                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
                         }
-                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
-			setSelectedTraitement(null);
-			$('#loading_circle').hide();
+			$('#image_zone .nub',settings.modal).remove();
+			$('#traitement_parametre > div',settings.modal).removeClass('active');
+			$('#traitement > li',settings.modal).removeClass('active');
+			$('#image_zone .nub',settings.modal).remove();
+			$('#loading_circle',settings.modal).hide();
 		}, flip),
 		new Traitement('Hue-Saturation', 'Hue / Saturation', function() {
 			this.addSlider('hue', 'Hue', -1, 1, 0, 0.01);
 			this.addSlider('saturation', 'Saturation', -1, 1, 0, 0.01);
 		}, function() {
-                        $('#loading_circle').show();
+                        $('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(texture).hueSaturation(this.hue, this.saturation).update();
 			if(this.flip_canvas){
 				var canvas_flip = document.createElement('canvas');
 				canvas_flip.height = canvas_glfx.height;
 				canvas_flip.width = canvas_glfx.width;
 				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/jpeg");
+				image_affiche.src = canvas_flip.toDataURL("image/png");
 				$(canvas_flip).remove();
 				delete canvas_flip;
 			} else {
-				image_affiche.src = canvas_glfx.toDataURL("image/jpeg");
+				image_affiche.src = canvas_glfx.toDataURL("image/png");
 			}
-                        $('#loading_circle').hide();
-			//console.log('appliqué');
+                        $('#loading_circle',settings.modal).hide();
 		}, function() {
-			$('#loading_circle').show();
-		//	canvas_glfx.height = image_modif.height;
-		//	canvas_glfx.width = image_modif.width;
+			$('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
                                 canvas_flip.width = canvas_glfx.width;
                                 canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/jpeg");
+                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
                                 $(canvas_flip).remove();
                                 delete canvas_flip;
                         } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/jpeg");
+                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
                         }
-                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
-			setSelectedTraitement(null);
-		$('#loading_circle').hide();
+			$('#image_zone .nub',settings.modal).remove();
+			$('#traitement_parametre > div',settings.modal).removeClass('active');
+			$('#traitement > li',settings.modal).removeClass('active');
+			$('#image_zone .nub',settings.modal).remove();
+		$('#loading_circle',settings.modal).hide();
 		}, flip),
 		new Traitement('Tilt-Shift', 'Tilt Shift', function() {
 			this.addNub('start', 0.15, 0.75);
@@ -696,43 +796,41 @@ var traitements = [
 			this.addSlider('blurRadius', 'Radius', 0, 50, 15, 1);
 			this.addSlider('gradientRadius', 'Thickness', 0, 400, 200, 1);
 		}, function() {
-                        $('#loading_circle').show();
+                        $('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
 			if(this.flip_canvas){
 				var canvas_flip = document.createElement('canvas');
 				canvas_flip.height = canvas_glfx.height;
 				canvas_flip.width = canvas_glfx.width;
 				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/jpeg");
+				image_affiche.src = canvas_flip.toDataURL("image/png");
 				$(canvas_flip).remove();
 				delete canvas_flip;
 			} else {
-			//ratio_image = resizeCanvasImage(image_modif, canvas_glfx, 550,550);
-				image_affiche.src = canvas_glfx.toDataURL("image/jpeg");
-				//$('#image_url').text("this.start.x,"+this.start.x+" this.start.y,"+this.start.y+" this.end.x,"+this.end.x+" this.end.y "+this.end.y);
+				image_affiche.src = canvas_glfx.toDataURL("image/png");
 			}
-                        $('#loading_circle').hide();
-			//console.log('appliqué');
+                        $('#loading_circle',settings.modal).hide();
 		}, function() {
-			$('#loading_circle').show();
-		//	canvas_glfx.height = image_modif.height;
-		//	canvas_glfx.width = image_modif.width;
+			$('#loading_circle',settings.modal).show();
 			canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
                         if(this.flip_canvas){
                                 var canvas_flip = document.createElement('canvas');
                                 canvas_flip.height = canvas_glfx.height;
                                 canvas_flip.width = canvas_glfx.width;
                                 canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/jpeg");
+                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
                                 $(canvas_flip).remove();
                                 delete canvas_flip;
                         } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/jpeg");
+                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
                         }
-                        //canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
-			setSelectedTraitement(null);
-			$('#loading_circle').hide();
+			$('#image_zone .nub',settings.modal).remove();
+   			$('#traitement_parametre > div',settings.modal).removeClass('active');
+			$('#traitement > li',settings.modal).removeClass('active');
+			$('#image_zone .nub',settings.modal).remove();
+			$('#loading_circle',settings.modal).hide();
 		}, flip)
 	];
 
 delete flip, device;
+}(jQuery));
