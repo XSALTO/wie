@@ -1,14 +1,15 @@
 (function ($){
 //
-//Image de grande taille tronqué avec webgl sur chromium, fonctionnel sur firefox
-//Erreur: out of range
-//
-//TODO ajouter bootstrap popover (affiche petit message)
+//TODO ajouter la gestion des langues
 //TODO ajouter préfixe aux variable (ex: ie-varibale)
 //TODO ajouter progressBar pour upload
+//TODO Sauvegarde grande image chromium non fonctionnelle
 
+var script_to_load = 3;
+var script_loaded = 0;
+var script_ok = $.Deferred();
 
-//Chargement de tout les autres scripts necessaire à partir du path de celui-ci lorsque tout les scripts ont été chargé
+//Déterminer le path du script et charger tous les autres scripts
 $( "script" ).on('load', function(){
     var filename = 'image-editor';
     var scripts = document.getElementsByTagName('script');
@@ -16,19 +17,35 @@ $( "script" ).on('load', function(){
         for (var i=0;i< scripts.length;i++) {
             if (scripts[i].src &&  scripts[i].src.match(new RegExp(filename+'\\.js$'))) {
 		var dir = scripts[i].src.replace(new RegExp('(.*)'+filename+'\\.js$'), '$1');
-		//bloquer les event jquery pour charger en avance glfx(necessaire a l'init)
-		$.holdReady( true );
-		$.getScript( dir+"/dependence/glfx.js", function() {
-	       		$.holdReady( false );
-	       	});
-		$.getScript(dir+"/dependence/cropper.min.js");
-		$.getScript(dir+"/dependence/caman.full.js");
+		getScript(dir+"dependence/glfx.js",true,isScriptLoaded);
+		getScript(dir+"dependence/cropper.min.js",true,isScriptLoaded);
+		getScript(dir+"dependence/caman.full.js",true,isScriptLoaded);
 		defaults.path = dir;
 		break;
             }
         }
     }
 });
+
+function getScript(url, async, done, fail){ 
+	$.ajax({
+		url: url,
+		type: "GET",
+		dataType: "script",
+		async: async,
+		success: done,
+		error: fail
+	});
+	
+};
+
+function isScriptLoaded(){
+	script_loaded++;
+	//console.log(script_loaded);
+	if(script_to_load == script_loaded){
+		script_ok.resolve();
+	}
+}
 
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
@@ -45,9 +62,16 @@ var defaults = {
 	formatImageSave: 'png',
 	imageName: 'image',
 	path: "",
-	modal: null};
+	lang: "fr",
+	maxHeight: 4096,
+	maxWidth: 4096,
+	modal: null
+	};
+var lang_possible = ["fr"];
 var format_possible = ['png','jpeg','webp'];
+var modifNoSave = false;
 image_affiche.id = "image";
+
 image_affiche.className = "img-responsive center-block";
 image_base.className = "img-responsive center-block"; 
 image_base.crossOrigin="Anonymous";
@@ -85,60 +109,86 @@ var filtres = [//	"normal",
 	"hemingway",
 	"concentrate" ];
 
-$.fn.imageEditor = function(option){ 
+$.fn.imageEditor = function(options){ 
+	if(options){
+		delete options.path;
+	}
+	settings = $.extend({},defaults,options);
 	var zone = null;
-	this.filter('div').each(function(){
+	this.each(function(){
 		zone = $(this);
 	});
-	$(document).ready(function(){
+	$.when(script_ok).done(function(){
+		if(options.lang){
+			for(var i = 0; i < lang_possible.length(); i++){
+				if(settings.lang == lang_possible[i]){
+					break;
+				}else if(i <= lang_possible.length()-1){
+					settings.lang = defaults.lang;
+				}
+			}
 
-		if(canvas_glfx != null){
-			return;
 		}
-		// Try to get a WebGL canvas
-		if (!window.fx) {
-			alert('glfx.js n\'a pas chargé.');
-			return;
-		}
-		try {
-			canvas_glfx = fx.canvas();
-		} catch (e) {
-			alert('Désolé, ce navigateur ne suporte pas WebGL');
-			return;
-		}
-		settings = $.extend({},defaults,option);
+		getScript(settings.path + "lang/"+settings.lang+".js", false, function(data, textStatus){
+				settings.lang = $.extend({}, $.fn.imageEditor.prototype.lang);
+				delete $.fn.imageEditor.prototype.lang;
+				initTraitements()
+			},
+			function(jqxhr, setting, exception){
+				alert("La langue n'a pas chargé");
+				return;
+			}
+		);
 
-		if(zone==null){
-			zone = 'body';
-		}
-		var id = 'modalImageEditor';
-		var i = 0;
-		while($('#'+id+i).length){
-			i++;
-		}
-		var modalAttr = {
-			 main:{
-				class: 'modal fade',
-				id: id+i,
-				tabindex: '-1',
-				role: 'dialog',
-				'aria-labelledby': 'modalImageEditor',
-				'data-backdrop': 'static'
-			}, dialog: {
-				class: 'modal-dialog modal-lg',
-				role: 'document'
-			}, content: {
-				class: 'modal-content'
-			} };
-		settings.modal = $('<div />').attr(modalAttr.main).appendTo(zone);
-		var dialog = $('<div />').attr(modalAttr.dialog).appendTo(settings.modal);
-		var content = $('<div />').attr(modalAttr.content).appendTo(dialog);
+		$(document).ready(function(){
 
-		//Affichage du modal par défaut
-		$('<div />').attr({class: 'modal-body'}).text('Erreur').appendTo(content);
-		var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content)
-		$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
+			if(canvas_glfx != null){
+				return;
+			}
+			// Try to get a WebGL canvas
+			if (!window.fx) {
+				alert(settings.lang.error_glfx_load_msg);
+				return;
+			}
+			try {
+				canvas_glfx = fx.canvas();
+			} catch (e) {
+				alert(settings.lang.error_glfx_support_msg);
+				return;
+			}
 
+			if(zone==null){
+				zone = 'body';
+			}
+			var id = 'modalImageEditor';
+			var i = 0;
+			while($('#'+id+i).length){
+				i++;
+			}
+			var modalAttr = {
+				main:{
+					class: 'modal fade',
+					id: id+i,
+					tabindex: '-1',
+					role: 'dialog',
+					'aria-labelledby': 'modalImageEditor',
+					'data-backdrop': 'static'
+				}, dialog: {
+					class: 'modal-dialog modal-lg',
+					role: 'document'
+				}, content: {
+					class: 'modal-content'
+				} };
+			settings.modal = $('<div />').attr(modalAttr.main).appendTo(zone);
+			var dialog = $('<div />').attr(modalAttr.dialog).appendTo(settings.modal);
+			var content = $('<div />').attr(modalAttr.content).appendTo(dialog);
+
+			//Affichage du modal par défaut
+			$('<div />').attr({class: 'modal-body'}).text(settings.lang.error_msg).appendTo(content);
+			var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content)
+			$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
+
+		});
 	});
 };
 
@@ -169,12 +219,14 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
     var canvasCopy2 = document.createElement("canvas");
     var copyContext2 = canvasCopy2.getContext("2d");
     canvasCopy.width = imgWidth;
+
+
     canvasCopy.height = imgHeight;  
     copyContext.drawImage(img, 0, 0);
 
     // init
     canvasCopy2.width = imgWidth;
-    canvasCopy2.height = imgHeight;        
+    canvasCopy2.height = imgHeight;
     copyContext2.drawImage(canvasCopy, 0, 0, canvasCopy.width, canvasCopy.height, 0, 0, canvasCopy2.width, canvasCopy2.height);
 
 
@@ -211,7 +263,14 @@ $.fn.editImage = function(options){
 
 	if(canvas_glfx == null) return;
 
+	delete options.modal, options.path, options.lang;
 	settings = $.extend({}, defaults, settings, options);
+	if(settings.maxHeight > defaults.maxHeight){
+		settings.maxHeight = defaults.maxHeight;
+	}
+	if(settings.maxWidth > defaults.maxWidth){
+		settings.maxWidth = defaults.maxHeight;
+	}
 
 	var format_ok = false;
 	for(var i = 0; i < format_possible.length; i++){
@@ -223,8 +282,13 @@ $.fn.editImage = function(options){
 	if(!format_ok){
 		settings.formatImageSave = 'png';
 	}
-	settings.modal.modal().load(settings.path+'image-editor.html'/*+'?'+(new Date().getTime())*/, function(e){
-		$('.modal-title', settings.modal).text('Image Editor - '+settings.imageName+'.'+settings.formatImageSave);
+	if(settings.formatImageSave == 'png'){
+		image_affiche.style.background = "url("+settings.path+"dependence/background.png) repeat";
+	}else{
+		image_affiche.style.background = "black";
+	}
+	settings.modal.modal({keyboard: false}).load(settings.path+'image-editor.html'+'?'+(new Date().getTime()), function(e){
+		$('.modal-title', settings.modal).text(settings.lang.title+' - '+settings.imageName+'.'+settings.formatImageSave);
 		$('#loading_circle', settings.modal).attr({src: settings.path+'/dependence/loading_circle.gif'});
 		$('#famille li',settings.modal).removeClass("active");
 		$('.tab-content div',settings.modal).removeClass("active");
@@ -234,8 +298,12 @@ $.fn.editImage = function(options){
 		image_affiche.onload = function () { //premier chargement de l'image affichée
 			$('#image_zone',settings.modal).empty().append(image_affiche);
 			$('#loading_circle',settings.modal).hide();
-			image_affiche.onload = null;
 			reset();
+			image_affiche.onload = null;
+			resizeCanvasImage(image_modif, canvas_traitement, settings.maxWidth, settings.maxHeight);
+			image_modif.src = canvas_traitement.toDataURL('image/'+settings.formatImageSave,1);
+			$(canvas_traitement).remove();
+			canvas_traitement = document.createElement('canvas');
 		};
 
 		image_modif.onload = function(){
@@ -249,7 +317,7 @@ $.fn.editImage = function(options){
 		};
 
 		var erreur = function () {
-			$('#image_zone',settings.modal).empty().html('<p class="text-center">That image is not available('+settings.urlImage+').</p>');
+			$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.error_loading_image_msg+'('+settings.urlImage+').</p>');
 			$('#loading_circle',settings.modal).hide();
 		}
 		image_base.onerror = erreur;
@@ -257,33 +325,72 @@ $.fn.editImage = function(options){
 
 		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
 		image_modif.src = settings.urlImage;
-		$('#li_crop',settings.modal).on('click',function(){annuler();crop();});
-		$('#li_filtre',settings.modal).on('click',function(){annuler()});
-		$('#li_traitement',settings.modal).on('click',function(){annuler()});
-		$('#li_comparer',settings.modal).on('click',function(){$("#image_zone #image",settings.modal).cropper('destroy');affiche_base();});
-		$('#li_reset',settings.modal).on('click',function(){annuler();reset()});
+		$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
+		$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
+		$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
+		$('#li_comparer',settings.modal).on('click',function(){$("#image_zone #image",settings.modal).cropper('destroy');affiche_base();}).text(settings.lang.compare);
+		$('#li_reset',settings.modal).on('click',function(){annuler();reset()}).text(settings.lang.reset);
 		$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
+		$('#crop button #valider',settings.modal).text(settings.lang.validate_button);
+		$('#crop button #annuler',settings.modal).text(settings.lang.cancel_button);
 
-		$('#image_zone',settings.modal).empty().html('<p class="text-center">Loading...</p>');
+		$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.loading_image_msg+'</p>');
+
+		//button close
+		var quit_validate = $('<div/>').appendTo('.modal-footer',settings.modal).hide().append('<p>'+settings.lang.close_msg+'</p>');
+		$('<button/>').attr({class:'btn btn-success'}).text(settings.lang.cancel_button).appendTo(quit_validate);
+		$('<button/>').attr({class:'btn btn-danger'}).text(settings.lang.close_button).appendTo(quit_validate).on('click',function(){
+			settings.modal.modal('hide');
+		});
+
+		var button_close = $('<button/>').attr({
+			type:'button',
+			class:'btn btn-danger',
+			id:'close_do_popover',
+			role:'button'})
+		.text(settings.lang.close_button)
+		.prependTo('.modal-footer #button-action',settings.modal)
+		.on('click',{quit_validate:quit_validate}, function(event){
+
+			if(settings.urlServeur && modifNoSave == true){
+			//	$(this).popover('show');
+				$(event.data.quit_validate).show();
+				$(this).parent().hide();
+			}else{
+				settings.modal.modal('hide');
+			}
+		})
+
+		$('button', quit_validate).on('click',{quit_validate:quit_validate},function(event){
+			$(event.data.quit_validate).hide();
+			$('.modal-footer #button-action').show();
+		});
+
 
 		//button save
-		var a = $('.modal-footer #button #save').attr({'target':'_blank'});
-		a.on('click',function(e){
-			$(this).attr({'href': image_modif.src, 'download': settings.imageName+"."+settings.formatImageSave});
-		});
+		$('<button />').attr({class:'btn btn-success',type:'button'})
+		.on('click',download)
+		.text(settings.lang.download_button)
+		.prependTo('.modal-footer #button-action',settings.modal);
 		
 		//button d'upload
 		if(settings.urlServeur != null){
 			$('<button />').attr({id:'upload', type:'button', class: 'btn'})
-			.text('Upload')
+			.text(settings.lang.upload_button)
 			.on('click',upload)
-			.prependTo('.modal-footer #button', settings.modal);
+			.prependTo('.modal-footer #button-action', settings.modal);
 		}
 	});
 
 }
 
-function download(filename, text) {
+function download() {
+	var a = document.createElement('a')
+	a.download = settings.imageName +'.'+settings.formatImageSave;
+	a.href = image_modif.src;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
 }
 
 function affiche_base(){
@@ -351,25 +458,18 @@ function camanFiltre(filtre){//pour le préview
 			$('#filtre_zone #filtre',settings.modal).hide();
 			$('#filtre_zone #validation',settings.modal).show();
 			$('#loading_circle',settings.modal).hide();
+			modifNoSave = true;
 		});
 	});
 }
 
-function slider_change(slider_id, traitement_id){
-	var slider = document.getElementById(slider_id);
-	for (var i = 0; i < traitements.length; i++){
-	var traitement = traitements[i];
-		if(traitement.id == traitement_id){
-			traitement[slider.id] = parseFloat(slider.value);
-                        traitement.update();
-			return;
-		}
-	}
+function slider_change(slider, traitement, value){
+	traitement[slider.id] = parseFloat(value);
+	traitement.update();
 }
 
 function reset(){
-	$(window).off('resize');
-	$(window).off('orientationchange');
+	modifNoSave = false;
 	$('#loading_circle',settings.modal).show();
 	$('#filtre',settings.modal).empty();
 	$('#filtre_zone #validation',settings.modal).empty();
@@ -377,9 +477,13 @@ function reset(){
 	$(canvas_traitement).remove();
 	delete canvas_traitement;
 	canvas_traitement = document.createElement('canvas');
+	canvas_traitement.height = image_affiche.height;
+	canvas_traitement.width = image_affiche.width;
 	$(canvas_glfx).remove();
 	delete canvas_glfx;
 	canvas_glfx = fx.canvas();
+	canvas_glfx.height = image_affiche.height;
+	canvas_glfx.width = image_affiche.width;
 	image_modif.src = image_base.src;//image_affiche change à onload de image_modif
 	filtre_utilise = null;
 
@@ -394,36 +498,37 @@ function reset(){
 		.on('click', function(){camanFiltre(this.id)});
         }
 	$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
-	.text("Valider")
+	.text(settings.lang.validate_button)
 	.appendTo('#filtre_zone #validation',settings.modal)
 	.on('click',function(){filtreValidation(this.value)});
 
 	$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
-	.text("Annuler")
+	.text(settings.lang.cancel_button)
 	.appendTo('#filtre_zone #validation',settings.modal)
 	.on('click',function(){filtreValidation(this.value)})
 	.parent().hide();
         ///////////
         //  Traitements
         /////////
-	$('<ul />').attr({id:"traitement", class:"center-block nav nav-pills nav-justified"}).appendTo('#traitement_zone',settings.modal);
-	$('<ul />').attr({id:"traitement_parametre", class:"tab-content"}).appendTo('#traitement_zone',settings.modal);
+	$('<div />').attr({id:"traitement", class:"center-block"}).appendTo('#traitement_zone',settings.modal);
+	$('<div />').attr({id:"traitement_parametre", class:"tab-content"}).appendTo('#traitement_zone',settings.modal);
        for(var i = 0; i < traitements.length; i++){
 		var traitement = traitements[i];
 		
-		var li = $('<li />').appendTo('#traitement',settings.modal);
-		$('<a />').attr({'data-toggle':"tab", href:'#'+traitement.id})
+		$('<button />').attr({'data-toggle':"tab", href:'#'+traitement.id, class:'btn'})
 		.text(traitement.label)
 		.on('click',{traitement:traitement},function(event){
-			var traitement = event.data.traitement
-		setSelectedTraitement(traitement.id)})
-		.appendTo(li);
+			var traitement = event.data.traitement;
+			setSelectedTraitement(traitement);
+		})
+		.appendTo('#traitement',settings.modal);
+
+		var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
 
                 /////////
                 //  Sliders
                 ///////// 
 		if(traitement.sliders.length){
-			var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
 			var table = $('<table />').attr({class:'table'}).appendTo(div_traitement);
 		}
                 for(var j = 0; j < traitement.sliders.length; j++){
@@ -439,14 +544,12 @@ function reset(){
                                 max: slider.max,
                                 value: slider.value,
                                 step: slider.step
-                        }).on('input',{slider:slider, traitement:traitement}, function(event){
-				var slider = event.data.slider;
-				var traitement = event.data.traitement;
-				slider_change(slider.id,traitement.id)})
-                        .on('change',{slider:slider, traitement:traitement}, function(event){
-				var slider = event.data.slider;
-				var traitement = event.data.traitement;
-				slider_change(slider.id,traitement.id)})
+                        }).on('input',{slider:slider,traitement:traitement},function(event){
+				slider_change(event.data.slider, event.data.traitement, $(this).val())
+			})
+                        .on('change',{slider:slider,traitement:traitement},function(event){
+				slider_change(event.data.slider, event.data.traitement, $(this).val())
+			})
 			.appendTo(th);
                 }
 
@@ -455,26 +558,26 @@ function reset(){
 		//  Valider/Annuler
 		//////////
 		$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
-		.text('Valider')
+		.text(settings.lang.validate_button)
 		.appendTo('#'+traitement.id,settings.modal)
 		.on('click',{traitement:traitement},function(event){
 			event.data.traitement.validate();
 		});
 		$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
-		.text('Annuler')
+		.text(settings.lang.cancel_button)
 		.appendTo('#'+traitement.id,settings.modal)
-		.on('click',annuler);
+		.on('click',function(){setSelectedTraitement(null)});
         
 
 	        /////////
-                //  Nubs (position on image)
+                //  Nubs (position sur l'image)
                 /////////
 		var nub_present = false;
 		for (var j = 0; j < traitement.nubs.length; j++) {
 			var nub = traitement.nubs[j];
 			var x = nub.x * canvas_glfx.width;
 			var y = nub.y * canvas_glfx.height;
-			traitement[nub.id] = { x: x, y: y };
+			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
 			if(nub_present == false){
 				nub_present = true;
 			}
@@ -488,23 +591,21 @@ function reset(){
 	$('#loading_circle',settings.modal).hide();
 }
 
-function setSelectedTraitement(traitement_id){
+function setSelectedTraitement(traitement){
+	modifNoSave = false;
+	$(window).off('resize', window, actualisePos);
+	$(window).off('orientationchange', window, actualisePos);
 	$('#image_zone .nub',settings.modal).remove();
 	$('#traitement_parametre > div',settings.modal).removeClass('active');
-	$('#traitement > li',settings.modal).removeClass('active');
-	$('#image_zone .nub',settings.modal).remove();
 	image_affiche.src = canvas_traitement.toDataURL('image/png');
-	if(traitement_id == null){
+	if(traitement == null){
+		$('#traitement_parametre',settings.modal).hide();
+		$('#traitement',settings.modal).show();
 		return;
 	}
-	$('#'+traitement_id,settings.modal).addClass('active');
-	var traitement;
-	for (var i = 0; i < traitements.length; i++){
-		traitement = traitements[i];
-		if(traitement.id == traitement_id){
-			break;
-		}
-	}
+	$('#'+traitement.id,settings.modal).addClass('active');
+	$('#traitement_parametre',settings.modal).show();
+	$('#traitement',settings.modal).hide();
 
 	// Reset all sliders
 	for (var i = 0; i < traitement.sliders.length; i++) {
@@ -548,7 +649,7 @@ function setSelectedTraitement(traitement_id){
 
 			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
 
-			traitement[nub.id] = { x: x, y: y };
+			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image };
 
 			// activer ou désactiver le traitement continue pour les ecrans tactiles
 			//traitement.update();
@@ -565,7 +666,7 @@ function setSelectedTraitement(traitement_id){
                         if(y>canvas_glfx.height) y = canvas_glfx.height;
 			
 			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});			
-			traitement[nub.id] = { x: x, y: y };
+			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
 			traitement.update();
 		});
 
@@ -607,16 +708,14 @@ function setSelectedTraitement(traitement_id){
 
 
 		$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
-		traitement[nub.id] = { x: x, y: y };
+		traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
 	}
 	traitement.update();
 }
 
 function crop(){// JCrop
 	$('#loading_circle',settings.modal).show();
-	$('#image_zone #image',settings.modal).cropper({
-		aspectRatio: image_modif.width/image_modif.height //forcer l'aspect du crop à celui de l'image originale
-	});
+	$('#image_zone #image',settings.modal).cropper();
         $('#loading_circle',settings.modal).hide();
 }
 
@@ -632,6 +731,7 @@ function cropValidation(etat){
 		$(canvas_glfx).remove();
 		delete canvas_glfx;
 		canvas_glfx = fx.canvas();
+		modifNoSave = true;
 	}
 	$('#image_zone #image',settings.modal).cropper("destroy");
 	$('#famille li',settings.modal).removeClass("active");
@@ -674,6 +774,7 @@ function upload(){
 		success: function(msg){
 			$('#loading_circle',settings.modal).hide();
 			console.log(msg);
+			modifNoSave = false;
 		}
 	});
 
@@ -684,19 +785,33 @@ function upload(){
 //	GLFX	  //
 ////////////////////
 
-function Traitement(id, label, init, update, validate,flip_canvas, reset){
-	this. label = label;
+function Traitement(id, init, update, validate,flip_canvas, reset, label){
+	if(typeof(label)!='string'){
+		if(settings.lang[id]){
+			label = settings.lang[id];
+		}else{
+			label = id;
+		}
+	}
+	this.label = label;
 	this.id = id;
 	this.update = update;
 	this.reset = reset;
 	this.sliders = [];
 	this.nubs = [];
 	this.flip_canvas = flip_canvas;
-	this.validate = validate
+	this.validate = validate;
 	init.call(this);
 }
 
-Traitement.prototype.addSlider = function(id,label,min,max,value,step){
+Traitement.prototype.addSlider = function(id,min,max,value,step,label){
+	if(typeof(label)!='string'){
+		if(settings.lang[id]){
+			label = settings.lang[id];
+		}else{
+			label = id;
+		}
+	}
 	this.sliders.push({id: id, label: label, min: min, max: max, value: value, step: step});
 };
 
@@ -713,124 +828,432 @@ for(var i = 0; i < devices_glfx_flip.length; i++){
 	}
 }
 
-var traitements = [
-		new Traitement('Brightness-Contrast', 'Luminositée / Contrast', function(){
-			this.addSlider('brightness', 'Luminositée', -1, 1, 0, 0.1);
-			this.addSlider('contrast', 'Contrast', -1, 1, 0, 0.1);
-		}, function() {
-                        $('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(texture).brightnessContrast(this.brightness, this.contrast).update();
-			if(this.flip_canvas){
-				var canvas_flip = document.createElement('canvas');
-				canvas_flip.height = canvas_glfx.height;
-				canvas_flip.width = canvas_glfx.width;
-				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/png");
-				$(canvas_flip).remove();
-				delete canvas_flip;
-			} else {
-				image_affiche.src = canvas_glfx.toDataURL("image/png");
-			}
-                        $('#loading_circle',settings.modal).hide();
-		}, function() {
-			$('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
-                        if(this.flip_canvas){
-                                var canvas_flip = document.createElement('canvas');
-                                canvas_flip.height = canvas_glfx.height;
-                                canvas_flip.width = canvas_glfx.width;
-                                canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
-                                $(canvas_flip).remove();
-                                delete canvas_flip;
-                        } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
-                        }
-			$('#image_zone .nub',settings.modal).remove();
-			$('#traitement_parametre > div',settings.modal).removeClass('active');
-			$('#traitement > li',settings.modal).removeClass('active');
-			$('#image_zone .nub',settings.modal).remove();
-			$('#loading_circle',settings.modal).hide();
-		}, flip),
-		new Traitement('Hue-Saturation', 'Hue / Saturation', function() {
-			this.addSlider('hue', 'Hue', -1, 1, 0, 0.01);
-			this.addSlider('saturation', 'Saturation', -1, 1, 0, 0.01);
-		}, function() {
-                        $('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(texture).hueSaturation(this.hue, this.saturation).update();
-			if(this.flip_canvas){
-				var canvas_flip = document.createElement('canvas');
-				canvas_flip.height = canvas_glfx.height;
-				canvas_flip.width = canvas_glfx.width;
-				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/png");
-				$(canvas_flip).remove();
-				delete canvas_flip;
-			} else {
-				image_affiche.src = canvas_glfx.toDataURL("image/png");
-			}
-                        $('#loading_circle',settings.modal).hide();
-		}, function() {
-			$('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
-                        if(this.flip_canvas){
-                                var canvas_flip = document.createElement('canvas');
-                                canvas_flip.height = canvas_glfx.height;
-                                canvas_flip.width = canvas_glfx.width;
-                                canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
-                                $(canvas_flip).remove();
-                                delete canvas_flip;
-                        } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
-                        }
-			$('#image_zone .nub',settings.modal).remove();
-			$('#traitement_parametre > div',settings.modal).removeClass('active');
-			$('#traitement > li',settings.modal).removeClass('active');
-			$('#image_zone .nub',settings.modal).remove();
-		$('#loading_circle',settings.modal).hide();
-		}, flip),
-		new Traitement('Tilt-Shift', 'Tilt Shift', function() {
-			this.addNub('start', 0.15, 0.75);
-			this.addNub('end', 0.75, 0.6);
-			this.addSlider('blurRadius', 'Radius', 0, 50, 15, 1);
-			this.addSlider('gradientRadius', 'Thickness', 0, 400, 200, 1);
-		}, function() {
-                        $('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
-			if(this.flip_canvas){
-				var canvas_flip = document.createElement('canvas');
-				canvas_flip.height = canvas_glfx.height;
-				canvas_flip.width = canvas_glfx.width;
-				canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-				image_affiche.src = canvas_flip.toDataURL("image/png");
-				$(canvas_flip).remove();
-				delete canvas_flip;
-			} else {
-				image_affiche.src = canvas_glfx.toDataURL("image/png");
-			}
-                        $('#loading_circle',settings.modal).hide();
-		}, function() {
-			$('#loading_circle',settings.modal).show();
-			canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
-                        if(this.flip_canvas){
-                                var canvas_flip = document.createElement('canvas');
-                                canvas_flip.height = canvas_glfx.height;
-                                canvas_flip.width = canvas_glfx.width;
-                                canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-                                image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
-                                $(canvas_flip).remove();
-                                delete canvas_flip;
-                        } else {
-                                image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
-                        }
-			$('#image_zone .nub',settings.modal).remove();
-   			$('#traitement_parametre > div',settings.modal).removeClass('active');
-			$('#traitement > li',settings.modal).removeClass('active');
-			$('#image_zone .nub',settings.modal).remove();
-			$('#loading_circle',settings.modal).hide();
-		}, flip)
-	];
+function applyPreview(traitement){
+	if(traitement.flip_canvas){
+		var canvas_flip = document.createElement('canvas');
+		canvas_flip.height = canvas_glfx.height;
+		canvas_flip.width = canvas_glfx.width;
+		canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
+		image_affiche.src = canvas_flip.toDataURL("image/png");
+		$(canvas_flip).remove();
+		delete canvas_flip;
+	} else {
+		image_affiche.src = canvas_glfx.toDataURL("image/png");
+	}
+}
+
+function applyReal(traitement){
+	if(this.flip_canvas){
+		var canvas_flip = document.createElement('canvas');
+		canvas_flip.height = canvas_glfx.height;
+		canvas_flip.width = canvas_glfx.width;
+		canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
+		image_modif.src = canvas_flip.toDataURL("image/"+settings.formatImageSave,1);
+		$(canvas_flip).remove();
+		delete canvas_flip;
+	} else {
+		image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
+	}
+	modifNoSave = true;
+	$('#traitement_parametre',settings.modal).hide();
+	$('#traitement',settings.modal).show();
+	$(window).off('resize');
+	$(window).off('orientationchange');
+	$('#image_zone .nub',settings.modal).remove();
+	$('#traitement_parametre > div',settings.modal).removeClass('active');
+}
+
+var traitement = null
+function initTraitements(){
+	traitements = [
+			new Traitement('brightnessContrast', function(){
+				this.addSlider('brightness',-1, 1, 0, 0.1);
+				this.addSlider('contrast',-1, 1, 0, 0.1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).brightnessContrast(this.brightness, this.contrast).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('hueSaturation', function() {
+				this.addSlider('hue', -1, 1, 0, 0.01);
+				this.addSlider('saturation', -1, 1, 0, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).hueSaturation(this.hue, this.saturation).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('vibrance', function() {
+				this.addSlider('amount', -1, 1, 0, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).vibrance(this.amount).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).vibrance(this.amount).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('denoise', function() {
+				this.addSlider('exponent', 0,50,20,1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).denoise(this.exponent).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).denoise(this.exponent).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('unsharpMask', function() {
+				this.addSlider('radius', 0,200,20,1);
+				this.addSlider('strength', 0,5,2,0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).unsharpMask(this.radius, this.strength).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).unsharpMask(this.radius, this.strength).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('noise', function() {
+				this.addSlider('amount', 0,1,0.5,0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).noise(this.amount).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).noise(this.amount).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('sepia', function() {
+				this.addSlider('amount', 0,1,1,0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).sepia(this.amount).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).sepia(this.amount).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('vignette', function() {
+				this.addSlider('amount', 0,1,0.5,0.01);
+				this.addSlider('size', 0,1,0.5,0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).vignette(this.size,this.amount).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).vignette(this.size,this.amount).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	//////////////////////////////////////////////////////
+			new Traitement('zoomBlur', function() {
+				this.addNub('center', 0.5,0.5);
+				this.addSlider('strength', 0, 1, 0.3, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).zoomBlur(this.center.x,this.center.y,this.strength).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).zoomBlur(this.center.reel_x,this.center.reel_y,this.strength).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('tiltShift', function() {
+				this.addNub('start', 0.15, 0.75);
+				this.addNub('end', 0.75, 0.6);
+				this.addSlider('blurRadius', 0, 50, 15, 1);
+				this.addSlider('gradientRadius', 0, 400, 200, 1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.reel_x, this.start.reel_y, this.end.reel_x, this.end.reel_y, this.blurRadius, this.gradientRadius).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('triangleBlur', function() {
+				this.addSlider('radius', 0, 200, 50, 1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).triangleBlur(this.radius).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).triangleBlur(this.radius).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('lensBlur', function() {
+				this.addSlider('radius', 0, 50, 10, 1);
+				this.addSlider('brightness', -1, 1, 0.75, 0.01);
+				this.addSlider('angle', -Math.PI, Math.PI, 0, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).lensBlur(this.radius,this.brightness,this.angle).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).lensBlur(this.radius,this.brightness,this.angle).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('swirl', function() {
+				this.addSlider('radius', 0, 600, 200, 1);
+				this.addSlider('angle',-25, 25, 3, 0.1);
+				this.addNub('center', 0.5,0.5);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).swirl(this.center.x,this.center.y,this.radius,this.angle).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).swirl(this.center.reel_x,this.center.reel_y,this.radius,this.angle).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('bulgePinch', function() {
+				this.addSlider('radius', 0, 600, 200, 1);
+				this.addSlider('strength',-1, 1, 0.5, 0.01);
+				this.addNub('center', 0.5,0.5);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).bulgePinch(this.center.x,this.center.y,this.radius,this.strength).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).bulgePinch(this.center.reel_x,this.center.reel_y,this.radius,this.strength).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('perspective', function() {
+				this.addNub('a', 0.25,0.25);
+				this.addNub('b', 0.75,0.25);
+				this.addNub('c', 0.25,0.75);
+				this.addNub('d', 0.75,0.75);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				this.after = [this.a.x,this.a.y,this.b.x,this.b.y,this.c.x,this.c.y,this.d.x,this.d.y];
+				this.before = [0,0,image_affiche.width, 0,0,image_affiche.height,image_affiche.width,image_affiche.height];
+				canvas_glfx.draw(texture).perspective(this.before, this.after).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				this.before = [0,0,image_modif.width, 0,0,image_modif.height,image_modif.width,image_modif.height];
+				this.after = [this.a.reel_x,this.a.reel_y,this.b.reel_x,this.b.reel_y,this.c.reel_x,this.c.reel_y,this.d.reel_x,this.d.reel_y];
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).perspective(this.before, this.after).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('ink', function() {
+				this.addSlider('strength', 0, 1, 0.25, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).ink(this.strength).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).ink(this.strength).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('edgeWork', function() {
+				this.addSlider('radius', 0, 200, 10, 1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).edgeWork(this.radius).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).edgeWork(this.radius).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('hexagonalPixelate', function() {
+				this.addNub('center', 0.5, 0.5);
+				this.addSlider('scale', 10, 100, 20, 1);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).hexagonalPixelate(this.center.x,this.center.y,this.scale).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).hexagonalPixelate(this.center.reel_x,this.center.reel_y,this.scale).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('dotScreen', function() {
+				this.addNub('center', 0.5, 0.5);
+				this.addSlider('angle', 0, Math.PI/2, 1.1, 0.01);
+				this.addSlider('size', 3, 20, 3, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).dotScreen(this.center.x,this.center.y,this.angle,this.size).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).dotScreen(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
+				applyReal(this);
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+	/////////////////////////////////////////////////////
+			new Traitement('colorHalftone', function() {
+				this.addNub('center', 0.5, 0.5);
+				this.addSlider('angle', 0, Math.PI/2, 0.25, 0.01);
+				this.addSlider('size', 3, 20, 4, 0.01);
+			}, function() {
+				///	PREVIEW
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(texture).colorHalftone(this.center.x,this.center.y,this.angle,this.size).update();
+				applyPreview(this);
+				$('#loading_circle',settings.modal).hide();
+			}, function() {
+				///	REAL	
+				$('#loading_circle',settings.modal).show();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).colorHalftone(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
+				applyReal(this);;
+
+				$('#loading_circle',settings.modal).hide();
+			}, flip
+			,null
+			,null),
+		];
+}
 
 delete flip, device;
 }(jQuery));
