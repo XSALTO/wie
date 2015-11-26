@@ -69,7 +69,7 @@
 		'strength':			"Force",
 		'size':				"Taille",
 		'scale':			"Echelle",
-		'amount':			"Quantité",
+		'amount':			"Quantité"
 
 	};
 }(jQuery));

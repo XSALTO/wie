@@ -67,7 +67,7 @@ var defaults = {
 	maxWidth: 4096,
 	modal: null
 	};
-var lang_possible = ["fr"];
+var lang_possible = ["fr","en"];
 var format_possible = ['png','jpeg','webp'];
 var modifNoSave = false;
 image_affiche.id = "image";
@@ -120,10 +120,10 @@ $.fn.imageEditor = function(options){
 	});
 	$.when(script_ok).done(function(){
 		if(options.lang){
-			for(var i = 0; i < lang_possible.length(); i++){
+			for(var i = 0; i < lang_possible.length; i++){
 				if(settings.lang == lang_possible[i]){
 					break;
-				}else if(i <= lang_possible.length()-1){
+				}else if(i == lang_possible.length-1){
 					settings.lang = defaults.lang;
 				}
 			}
@@ -135,7 +135,7 @@ $.fn.imageEditor = function(options){
 				initTraitements()
 			},
 			function(jqxhr, setting, exception){
-				alert("La langue n'a pas chargé");
+				alert("La langue n'a pas chargé. Erreur : "+exception);
 				return;
 			}
 		);
@@ -313,7 +313,7 @@ $.fn.editImage = function(options){
 
 			canvas_glfx.height = canvas_traitement.height;
 			canvas_glfx.width = canvas_traitement.width;
-			texture = canvas_glfx.texture(image_affiche);
+			texture = canvas_glfx.texture(canvas_traitement);
 		};
 
 		var erreur = function () {
@@ -330,9 +330,10 @@ $.fn.editImage = function(options){
 		$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
 		$('#li_comparer',settings.modal).on('click',function(){$("#image_zone #image",settings.modal).cropper('destroy');affiche_base();}).text(settings.lang.compare);
 		$('#li_reset',settings.modal).on('click',function(){annuler();reset()}).text(settings.lang.reset);
+
 		$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
-		$('#crop button #valider',settings.modal).text(settings.lang.validate_button);
-		$('#crop button #annuler',settings.modal).text(settings.lang.cancel_button);
+		$('#crop #valider',settings.modal).text(settings.lang.validate_button);
+		$('#crop #annuler',settings.modal).text(settings.lang.cancel_button);
 
 		$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.loading_image_msg+'</p>');
 
@@ -731,6 +732,7 @@ function cropValidation(etat){
 		$(canvas_glfx).remove();
 		delete canvas_glfx;
 		canvas_glfx = fx.canvas();
+
 		modifNoSave = true;
 	}
 	$('#image_zone #image',settings.modal).cropper("destroy");
