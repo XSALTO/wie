@@ -5,11 +5,13 @@
 //TODO ajouter progressBar pour upload
 //TODO Sauvegarde grande image chromium non fonctionnelle
 
-var script_to_load = 3;
-var script_loaded = 0;
-var script_ok = $.Deferred();
+var script_to_load = 	[	
+				"dependence/cropper.min.js",
+				"dependence/caman.full.js",
+				"dependence/glfx.js"
+			];
 
-//Déterminer le path du script et charger tous les autres scripts
+//Déterminer le path du script
 $( "script" ).on('load', function(){
     var filename = 'image-editor';
     var scripts = document.getElementsByTagName('script');
@@ -17,9 +19,6 @@ $( "script" ).on('load', function(){
         for (var i=0;i< scripts.length;i++) {
             if (scripts[i].src &&  scripts[i].src.match(new RegExp(filename+'\\.js$'))) {
 		var dir = scripts[i].src.replace(new RegExp('(.*)'+filename+'\\.js$'), '$1');
-		getScript(dir+"dependence/glfx.js",true,isScriptLoaded);
-		getScript(dir+"dependence/cropper.min.js",true,isScriptLoaded);
-		getScript(dir+"dependence/caman.full.js",true,isScriptLoaded);
 		defaults.path = dir;
 		break;
             }
@@ -27,7 +26,27 @@ $( "script" ).on('load', function(){
     }
 });
 
-function getScript(url, async, done, fail){ 
+function loadScripts(){	
+	return $.Deferred(function(){
+		var self = this;
+		function isDone(){
+			if(script_loaded == script_to_load.length){
+				self.resolve();
+			}
+		}
+		var script_loaded = 0;
+		for(var i = 0; i < script_to_load.length; i++){
+			$.when($.getScript(settings.path+script_to_load[i])).done(
+				function(){
+					script_loaded++;
+					isDone();
+				}
+			);
+		}
+	});
+}
+
+function getScript(url, async, done, fail){ //Principal utilité, charger en sync 
 	$.ajax({
 		url: url,
 		type: "GET",
@@ -38,14 +57,6 @@ function getScript(url, async, done, fail){
 	});
 	
 };
-
-function isScriptLoaded(){
-	script_loaded++;
-	//console.log(script_loaded);
-	if(script_to_load == script_loaded){
-		script_ok.resolve();
-	}
-}
 
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
@@ -118,7 +129,10 @@ $.fn.imageEditor = function(options){
 	this.each(function(){
 		zone = $(this);
 	});
-	$.when(script_ok).done(function(){
+	$.when(
+		//quand tout les scripts sont chargé
+		loadScripts()
+	).done(function(){
 		if(options.lang){
 			for(var i = 0; i < lang_possible.length; i++){
 				if(settings.lang == lang_possible[i]){
@@ -525,6 +539,7 @@ function reset(){
 		.appendTo('#traitement',settings.modal);
 
 		var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
+		$('<p/>').text(traitement.label).attr({style:'text-align: center;'}).appendTo(div_traitement);
 
                 /////////
                 //  Sliders
