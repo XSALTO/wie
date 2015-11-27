@@ -1,15 +1,28 @@
 (function ($){
 //
-//TODO ajouter la gestion des langues
 //TODO ajouter préfixe aux variable (ex: ie-varibale)
 //TODO ajouter progressBar pour upload
 //TODO Sauvegarde grande image chromium non fonctionnelle
 
-var script_to_load = 	[	
-				"dependence/cropper.min.js",
-				"dependence/caman.full.js",
-				"dependence/glfx.js"
-			];
+var script_to_load = [
+	"dependence/cropper.min.js",
+	"dependence/caman.full.js",
+	"dependence/glfx.js"];
+var devices_glfx_flip = [
+	'iPad Simulator',
+	'iPhone Simulator',
+	'iPod Simulator',
+	'iPad',
+	'iPhone',
+	'iPod' ];
+var lang_possible = [
+	"fr",
+	"en"];
+var format_possible = [
+	'png',
+	'jpeg',
+	'webp'];
+
 
 //Déterminer le path du script
 $( "script" ).on('load', function(){
@@ -41,7 +54,9 @@ function loadScripts(){
 					script_loaded++;
 					isDone();
 				}
-			);
+			).fail(function(){
+				settings.onLoadScriptError(this.url);
+			});
 		}
 	});
 }
@@ -76,10 +91,16 @@ var defaults = {
 	lang: "fr",
 	maxHeight: 4096,
 	maxWidth: 4096,
-	modal: null
+	modal: null,
+	onUpload: function(){},
+	onUploadError: function(){},
+	onHide: function(){},
+	onLoadImageError: function(){},
+	onGlfxNoSupport: function(){alert(settings.lang.error_glfx_support_msg);},
+	onLoadScriptError: function(urlScript){alert("Le scipt suivant n'a pas chargé:\n\n"+urlScript.replace(/\?.*$/, ""));},
+	onLoadLangError: function(exception){alert("La langue '"+settings.lang+"' n'a pas chargé.\n\nErreur : "+exception);},
+	onShow: function(){}
 	};
-var lang_possible = ["fr","en"];
-var format_possible = ['png','jpeg','webp'];
 var modifNoSave = false;
 image_affiche.id = "image";
 
@@ -91,14 +112,6 @@ image_modif.crossOrigin="Anonymous";
 
 var image_position = {	'screen':{'left':0,'top':0},
 			'modal':{'left':0,'top':0}	} ;
-
-var devices_glfx_flip = [
-	'iPad Simulator',
-	'iPhone Simulator',
-	'iPod Simulator',
-	'iPad',
-	'iPhone',
-	'iPod' ];
 
 var filtres = [//	"normal",
 	"vintage",
@@ -120,13 +133,45 @@ var filtres = [//	"normal",
 	"hemingway",
 	"concentrate" ];
 
-$.fn.imageEditor = function(options){ 
+$.fn.imageEditor = function(options, action){
+
+
+	if(!action && typeof(options)=='string'){
+		action = options;
+		option = {};
+	}else if(!action && options.urlImage && settings.modal){ //Si une image et que la modal est déjà créé
+		action = 'show';
+	}
+	options.selector = this;
+	if(action){
+		switch (action){
+			case 'init':
+				imageEditorInit(options);
+				return;
+			case 'show':
+				imageEditorEdit(options);
+				return;
+			case 'hide':
+				settings.modal.modal('hide');
+				return;
+		}
+	}
+	imageEditorInit(options)
+
+}
+
+function imageEditorInit(options){
+
+	if(settings.modal != null){
+		return;
+	}
+
 	if(options){
 		delete options.path;
 	}
 	settings = $.extend({},defaults,options);
 	var zone = null;
-	this.each(function(){
+	options.selector.each(function(){
 		zone = $(this);
 	});
 	$.when(
@@ -149,25 +194,17 @@ $.fn.imageEditor = function(options){
 				initTraitements()
 			},
 			function(jqxhr, setting, exception){
-				alert("La langue n'a pas chargé. Erreur : "+exception);
+				settings.onLoadLangError(exception);
 				return;
 			}
 		);
 
 		$(document).ready(function(){
 
-			if(canvas_glfx != null){
-				return;
-			}
-			// Try to get a WebGL canvas
-			if (!window.fx) {
-				alert(settings.lang.error_glfx_load_msg);
-				return;
-			}
 			try {
 				canvas_glfx = fx.canvas();
 			} catch (e) {
-				alert(settings.lang.error_glfx_support_msg);
+				settings.onGlfxNoSupport();
 				return;
 			}
 
@@ -201,81 +238,84 @@ $.fn.imageEditor = function(options){
 			$('<div />').attr({class: 'modal-body'}).text(settings.lang.error_msg).appendTo(content);
 			var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content)
 			$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
+			
+			settings.modal.on('hidden.bs.modal', settings.onHide);
 
 		});
 	});
 };
 
 function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
-    var imgWidth = img.width, 
-        imgHeight = img.height;
+	var imgWidth = img.width, 
+	imgHeight = img.height;
 
-    var ratio = 1, ratio1 = 1, ratio2 = 1;
-    ratio1 = maxWidth / imgWidth;
-    ratio2 = maxHeight / imgHeight;
-
-
-    // Use the smallest ratio that the image best fit into the maxWidth x maxHeight box.
-    if (ratio1 < ratio2) {
-        ratio = ratio1;
-    }
-    else {
-        ratio = ratio2;
-    }
-
-    if (ratio > 1){
-	ratio = 1;
-    }
-
-    var canvasContext = canvas.getContext("2d");
-    var canvasCopy = document.createElement("canvas");
-    var copyContext = canvasCopy.getContext("2d");
-    var canvasCopy2 = document.createElement("canvas");
-    var copyContext2 = canvasCopy2.getContext("2d");
-    canvasCopy.width = imgWidth;
+	var ratio = 1, ratio1 = 1, ratio2 = 1;
+	ratio1 = maxWidth / imgWidth;
+	ratio2 = maxHeight / imgHeight;
 
 
-    canvasCopy.height = imgHeight;  
-    copyContext.drawImage(img, 0, 0);
+	// Use the smallest ratio that the image best fit into the maxWidth x maxHeight box.
+	if (ratio1 < ratio2) {
+		ratio = ratio1;
+	}
+	else {
+		ratio = ratio2;
+	}
 
-    // init
-    canvasCopy2.width = imgWidth;
-    canvasCopy2.height = imgHeight;
-    copyContext2.drawImage(canvasCopy, 0, 0, canvasCopy.width, canvasCopy.height, 0, 0, canvasCopy2.width, canvasCopy2.height);
+	if (ratio > 1){
+		ratio = 1;
+	}
 
-
-    var rounds = 2;
-    var roundRatio = ratio * rounds;
-    for (var i = 1; i <= rounds; i++) {
-
-        // tmp
-        canvasCopy.width = imgWidth * roundRatio / i;
-        canvasCopy.height = imgHeight * roundRatio / i;
-
-        copyContext.drawImage(canvasCopy2, 0, 0, canvasCopy2.width, canvasCopy2.height, 0, 0, canvasCopy.width, canvasCopy.height);
-
-        // copy back
-        canvasCopy2.width = imgWidth * roundRatio / i;
-        canvasCopy2.height = imgHeight * roundRatio / i;
-        copyContext2.drawImage(canvasCopy, 0, 0, canvasCopy.width, canvasCopy.height, 0, 0, canvasCopy2.width, canvasCopy2.height);
-
-    } // end for
+	var canvasContext = canvas.getContext("2d");
+	var canvasCopy = document.createElement("canvas");
+	var copyContext = canvasCopy.getContext("2d");
+	var canvasCopy2 = document.createElement("canvas");
+	var copyContext2 = canvasCopy2.getContext("2d");
+	canvasCopy.width = imgWidth;
 
 
-    // copy back to canvas
-    canvas.width = imgWidth * roundRatio / rounds;
-    canvas.height = imgHeight * roundRatio / rounds;
-    canvasContext.drawImage(canvasCopy2, 0, 0, canvasCopy2.width, canvasCopy2.height, 0, 0, canvas.width, canvas.height);
+	canvasCopy.height = imgHeight;  
+	copyContext.drawImage(img, 0, 0);
+
+	// init
+	canvasCopy2.width = imgWidth;
+	canvasCopy2.height = imgHeight;
+	copyContext2.drawImage(canvasCopy, 0, 0, canvasCopy.width, canvasCopy.height, 0, 0, canvasCopy2.width, canvasCopy2.height);
+
+
+	var rounds = 2;
+	var roundRatio = ratio * rounds;
+	for (var i = 1; i <= rounds; i++) {
+
+		// tmp
+		canvasCopy.width = imgWidth * roundRatio / i;
+		canvasCopy.height = imgHeight * roundRatio / i;
+
+		copyContext.drawImage(canvasCopy2, 0, 0, canvasCopy2.width, canvasCopy2.height, 0, 0, canvasCopy.width, canvasCopy.height);
+
+		// copy back
+		canvasCopy2.width = imgWidth * roundRatio / i;
+		canvasCopy2.height = imgHeight * roundRatio / i;
+		copyContext2.drawImage(canvasCopy, 0, 0, canvasCopy.width, canvasCopy.height, 0, 0, canvasCopy2.width, canvasCopy2.height);
+
+	} // end for
+
+
+	// copy back to canvas
+	canvas.width = imgWidth * roundRatio / rounds;
+	canvas.height = imgHeight * roundRatio / rounds;
+	canvasContext.drawImage(canvasCopy2, 0, 0, canvasCopy2.width, canvasCopy2.height, 0, 0, canvas.width, canvas.height);
 
 	$(canvasCopy).remove();
 	$(canvasCopy2).remove();
 	return ratio;
 }
 
-$.fn.editImage = function(options){
+//$.fn.editImage = function(options){
+function imageEditorEdit(options){
 
 
-	if(canvas_glfx == null) return;
+	if(settings.modal == null) return;
 
 	delete options.modal, options.path, options.lang;
 	settings = $.extend({}, defaults, settings, options);
@@ -302,13 +342,13 @@ $.fn.editImage = function(options){
 		image_affiche.style.background = "black";
 	}
 	settings.modal.modal({keyboard: false}).load(settings.path+'image-editor.html'+'?'+(new Date().getTime()), function(e){
+		$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.loading_image_msg+'</p>');
 		$('.modal-title', settings.modal).text(settings.lang.title+' - '+settings.imageName+'.'+settings.formatImageSave);
 		$('#loading_circle', settings.modal).attr({src: settings.path+'/dependence/loading_circle.gif'});
 		$('#famille li',settings.modal).removeClass("active");
 		$('.tab-content div',settings.modal).removeClass("active");
 		$('#loading_circle',settings.modal).show();
 		$('#image_url',settings.modal).empty();
-		$('#image_zone',settings.modal).empty();
 		image_affiche.onload = function () { //premier chargement de l'image affichée
 			$('#image_zone',settings.modal).empty().append(image_affiche);
 			$('#loading_circle',settings.modal).hide();
@@ -333,6 +373,7 @@ $.fn.editImage = function(options){
 		var erreur = function () {
 			$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.error_loading_image_msg+'('+settings.urlImage+').</p>');
 			$('#loading_circle',settings.modal).hide();
+			settings.onLoadImageError();
 		}
 		image_base.onerror = erreur;
 		image_affiche.onerror = erreur;
@@ -349,7 +390,6 @@ $.fn.editImage = function(options){
 		$('#crop #valider',settings.modal).text(settings.lang.validate_button);
 		$('#crop #annuler',settings.modal).text(settings.lang.cancel_button);
 
-		$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.loading_image_msg+'</p>');
 
 		//button close
 		var quit_validate = $('<div/>').appendTo('.modal-footer',settings.modal).hide().append('<p>'+settings.lang.close_msg+'</p>');
@@ -395,6 +435,8 @@ $.fn.editImage = function(options){
 			.on('click',upload)
 			.prependTo('.modal-footer #button-action', settings.modal);
 		}
+
+		settings.onShow();
 	});
 
 }
@@ -439,7 +481,7 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 			});
 		});
 	} else if (filtre_utilise != null){
-		Caman(canvas_traitement, function(){
+		Caman(canvaformatImageSaves_traitement, function(){
 			this.revert();
 			this.render(function(){
 				filtre_utilise = null;
@@ -561,7 +603,7 @@ function reset(){
                                 value: slider.value,
                                 step: slider.step
                         }).on('input',{slider:slider,traitement:traitement},function(event){
-				slider_change(event.data.slider, event.data.traitement, $(this).val())
+				slider_change(event.data.slider, event.data.traitement, $(this).val())   
 			})
                         .on('change',{slider:slider,traitement:traitement},function(event){
 				slider_change(event.data.slider, event.data.traitement, $(this).val())
@@ -790,8 +832,12 @@ function upload(){
 		data: { "imageData" : url, "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName },
 		success: function(msg){
 			$('#loading_circle',settings.modal).hide();
+			settings.onUpload(msg);
 			console.log(msg);
 			modifNoSave = false;
+		},
+		error: function(msg){
+			settings.onUploadError(msg);
 		}
 	});
 
