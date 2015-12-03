@@ -1,9 +1,8 @@
 (function ($){
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
-//TODO problème : 2 chargements de la langue(en clair finir la $.fn.imageEditor())
 //TODO ajouter préfixe aux variable (ex: ie-varibale)
 //TODO ajouter progressBar pour upload
-//TODO Sauvegarde grande image chromium non fonctionnelle
+//TODO Télécharger grande image chromium non fonctionnelle
 
 
 var script_to_load = [
@@ -118,8 +117,6 @@ var image_position = {	'screen':{'left':0,'top':0},
 
 
 $.fn.imageEditor = function(options, action){
-
-//TODO transformet en 1 function qui créé et open(vérification si param 'hide') la modal
 
 	if(!action && typeof(options)=='string'){
 		action = options;
@@ -372,10 +369,10 @@ function imageEditorEdit(options){
 			ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
 			image_affiche.src = canvas_traitement.toDataURL("image/png");
 
-			canvas_glfx.height = canvas_traitement.height;
-			canvas_glfx.width = canvas_traitement.width;
 			canvas_glfx.remove();
 			canvas_glfx = fx.canvas();
+			canvas_glfx.height = canvas_traitement.height;
+			canvas_glfx.width = canvas_traitement.width;
 			if(texture){texture.destroy();}
 			texture = canvas_glfx.texture(canvas_traitement);
 
@@ -508,6 +505,7 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 	}
 
 	$('#filtre_zone #validation',settings.modal).hide();
+	$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 	
 }
 
@@ -528,6 +526,7 @@ function camanFiltre(filtre){//pour le préview
 			$('#filtre_zone #validation',settings.modal).show();
 			$('#loading_circle',settings.modal).hide();
 			modifNoSave = true;
+			$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 		});
 	});
 }
@@ -671,6 +670,7 @@ function setSelectedTraitement(traitement){
 	if(traitement == null){
 		$('#traitement_parametre',settings.modal).hide();
 		$('#traitement',settings.modal).show();
+		$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 		return;
 	}
 	$('#'+traitement.id,settings.modal).addClass('active');
@@ -787,20 +787,17 @@ function crop(){// JCrop
 	$('#loading_circle',settings.modal).show();
 	$('#image_zone #image',settings.modal).cropper();
         $('#loading_circle',settings.modal).hide();
+	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
 
 function cropValidation(etat){
 	$('#loading_circle',settings.modal).show();
 	if(etat == "true"){
-		var data = $("#image_zone #image").cropper("getData");//get pos and crop preview et reel
+		var data = $("#image_zone #image").cropper("getData");//récupérer les pos et crop preview et reel
 		canvas_traitement.width = data.width / ratio_image;		
 		canvas_traitement.height = data.height / ratio_image;
 		canvas_traitement.getContext("2d").drawImage(image_modif, -data.x/ratio_image,-data.y/ratio_image);
 		image_modif.src = canvas_traitement.toDataURL("image/"+settings.formatImageSave,1);
-		//Problème de recadrage sur canvas_glfx
-		$(canvas_glfx).remove();
-		delete canvas_glfx;
-		canvas_glfx = fx.canvas();
 
 		modifNoSave = true;
 	}
@@ -808,12 +805,14 @@ function cropValidation(etat){
 	$('#famille li',settings.modal).removeClass("active");
 	$('.tab-content div',settings.modal).removeClass("active");
         $('#loading_circle',settings.modal).hide();
+	$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 }
 
 function annuler(){
 	cropValidation("false");
 	filtreValidation("false");
 	setSelectedTraitement(null);
+	$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 }
 
 function upload(){
@@ -852,8 +851,8 @@ function upload(){
 		}
 	});
 
-		delete canvas_rendu_final;
-	}
+	delete canvas_rendu_final;
+}
 
 ////////////////////////////////////
 //	Traitements et Filtres	  //
@@ -914,6 +913,7 @@ function applyPreview(traitement){
 	} else {
 		image_affiche.src = canvas_glfx.toDataURL("image/png");
 	}
+	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
 
 function applyReal(traitement){
@@ -935,6 +935,7 @@ function applyReal(traitement){
 	$(window).off('orientationchange');
 	$('#image_zone .nub',settings.modal).remove();
 	$('#traitement_parametre > div',settings.modal).removeClass('active');
+	$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 }
 
 

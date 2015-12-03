@@ -20,7 +20,11 @@
 }
 
 
-#image_zone  {
+.modal-content {
 	-moz-user-select:none;
 	-webkit-user-select:none;
+}
+
+.traitement-no-validate {
+	display: none;
 }
