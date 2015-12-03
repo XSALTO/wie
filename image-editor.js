@@ -766,7 +766,7 @@ function setSelectedTraitement(traitement){
 			var nub = event.data.nub;
 			var x = traitement[nub.id].x;
 			var y = traitement[nub.id].y;
-                        image_position.sc,reen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
+                        image_position.screen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
                         image_position.screen.top = ($('#'+nub.id,settings.modal).parent().height() - $('#image',settings.modal).height())/2 + $('#'+nub.id,settings.modal).parent().offset().top;
                         image_position.modal.left = image_position.screen.left - ($('#image_zone',settings.modal).offset().left - $('#'+nub.id,settings.modal).parent().position().left);
                        	image_position.modal.top = image_position.screen.top - ($('#'+nub.id,settings.modal).parent().offset().top - $('#'+nub.id,settings.modal).parent().position().top);
@@ -976,8 +976,6 @@ function initTraitements(){
 			}, function() {
 				///	REAL	
 				$('#loading_circle',settings.modal).show();
-				//canvas_glfx.height = image_modif.height;
-				//canvas_glfx.width = image_modif.width;
 				canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
