@@ -69,7 +69,30 @@
 		'strength':			"Strength",
 		'size':				"Size",
 		'scale':			"Scale",
-		'amount':			"Amount"
+		'amount':			"Amount",
 
+
+		////////
+		// Filtres
+		////////
+
+		"vintage":			"vintage",
+		"lomo":				"lomo",
+		"clarity":			"clarity",
+		"sinCity":			"sinCity",
+		"sunrise":			"sunrise",
+		"crossProcess":			"crossProcess",
+		"orangePeel":			"orangePeel",
+		"love":				"love",
+		"grungy":			"grungy",
+		"jarques":			"jarques",
+		"pinhole":			"pinhole",
+		"oldBoot":			"oldBoot",
+		"glowingSun":			"glowingSun",
+		"hazyDays":			"hazyDays",
+		"herMajesty":			"herMajesty",
+		"nostalgia":			"nostalgia",
+		"hemingway":			"hemingway",
+		"concentrate":			"concentrate",
 	};
 }(jQuery));

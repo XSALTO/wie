@@ -31,7 +31,7 @@
 		////////
 
 
-		'brightnessContrast':		"Luminausitée / Contrast",
+		'brightnessContrast':		"Luminosité / Contrast",
 		'hueSaturation':		"Teinte / Saturation",
 		'tiltShift':			"Effet de maquette",
 		'vibrance':			"Vibrance",
@@ -69,7 +69,31 @@
 		'strength':			"Force",
 		'size':				"Taille",
 		'scale':			"Echelle",
-		'amount':			"Quantité"
+		'amount':			"Quantité",
+
+
+		////////
+		// Filtres
+		////////
+
+		"vintage":			"vintage",
+		"lomo":				"lomo",
+		"clarity":			"clarity",
+		"sinCity":			"sinCity",
+		"sunrise":			"sunrise",
+		"crossProcess":			"crossProcess",
+		"orangePeel":			"orangePeel",
+		"love":				"love",
+		"grungy":			"grungy",
+		"jarques":			"jarques",
+		"pinhole":			"pinhole",
+		"oldBoot":			"oldBoot",
+		"glowingSun":			"glowingSun",
+		"hazyDays":			"hazyDays",
+		"herMajesty":			"herMajesty",
+		"nostalgia":			"nostalgia",
+		"hemingway":			"hemingway",
+		"concentrate":			"concentrate",
 
 	};
 }(jQuery));

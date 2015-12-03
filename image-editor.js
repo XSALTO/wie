@@ -115,25 +115,7 @@ image_modif.crossOrigin="Anonymous";
 var image_position = {	'screen':{'left':0,'top':0},
 			'modal':{'left':0,'top':0}	} ;
 
-var filtres = [//	"normal",
-	"vintage",
-	"lomo",
-	"clarity",
-	"sinCity",
-	"sunrise",
-	"crossProcess",
-	"orangePeel",
-	"love",
-	"grungy",
-	"jarques",
-	"pinhole",
-	"oldBoot",
-	"glowingSun",
-	"hazyDays",
-	"herMajesty",
-	"nostalgia",
-	"hemingway",
-	"concentrate" ];
+
 
 $.fn.imageEditor = function(options, action){
 
@@ -338,7 +320,9 @@ function imageEditorEdit(options){
 
 	if(settings.modal == null) return;
 
-	delete options.modal, options.path, options.lang;
+	delete options.modal;
+	delete options.path;
+	delete options.lang;
 	settings = $.extend({}, defaults, settings, options);
 	if(settings.maxHeight > defaults.maxHeight){
 		settings.maxHeight = defaults.maxHeight;
@@ -390,7 +374,11 @@ function imageEditorEdit(options){
 
 			canvas_glfx.height = canvas_traitement.height;
 			canvas_glfx.width = canvas_traitement.width;
+			canvas_glfx.remove();
+			canvas_glfx = fx.canvas();
+			if(texture){texture.destroy();}
 			texture = canvas_glfx.texture(canvas_traitement);
+
 		};
 
 		var erreur = function () {
@@ -497,7 +485,8 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 				image_modif.src = canvas_reel.toDataURL("image/"+settings.formatImageSave,1);
 				filtre_utilise = null;
 				$(canvas_traitement).remove();
-				delete canvas_reel, canvas_traitement;
+				delete canvas_reel;
+				delete canvas_traitement;
 				canvas_traitement = document.createElement('canvas'); //pour ne pas perdre les filtre au preview avec this.revert()
 				$('#filtre_zone #filtre',settings.modal).show();
                         	$('#loading_circle',settings.modal).hide();
@@ -572,8 +561,8 @@ function reset(){
 	/////////
         for(var i = 0; i < filtres.length; i++){
 		var filtre = filtres[i];
-		$('<button />').attr({type:"button", class:"btn", id:filtre})
-		.text(filtre)
+		$('<button />').attr({type:"button", class:"btn", id:filtre.id})
+		.text(filtre.label)
 		.appendTo('#filtre',settings.modal)
 		.on('click', function(){camanFiltre(this.id)});
         }
@@ -777,7 +766,7 @@ function setSelectedTraitement(traitement){
 			var nub = event.data.nub;
 			var x = traitement[nub.id].x;
 			var y = traitement[nub.id].y;
-                        image_position.screen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
+                        image_position.sc,reen.left =  ($('#'+nub.id,settings.modal).parent().width() - $('#image',settings.modal).width())/2 + $('#'+nub.id,settings.modal).parent().offset().left;
                         image_position.screen.top = ($('#'+nub.id,settings.modal).parent().height() - $('#image',settings.modal).height())/2 + $('#'+nub.id,settings.modal).parent().offset().top;
                         image_position.modal.left = image_position.screen.left - ($('#image_zone',settings.modal).offset().left - $('#'+nub.id,settings.modal).parent().position().left);
                        	image_position.modal.top = image_position.screen.top - ($('#'+nub.id,settings.modal).parent().offset().top - $('#'+nub.id,settings.modal).parent().position().top);
@@ -855,8 +844,8 @@ function upload(){
 		data: { "imageData" : url, "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName },
 		success: function(msg){
 			$('#loading_circle',settings.modal).hide();
-			settings.onUpload(msg);
 			modifNoSave = false;
+			settings.onUpload(msg);
 		},
 		error: function(msg){
 			settings.onUploadError(msg);
@@ -866,9 +855,9 @@ function upload(){
 		delete canvas_rendu_final;
 	}
 
-////////////////////
-//	GLFX	  //
-////////////////////
+////////////////////////////////////
+//	Traitements et Filtres	  //
+////////////////////////////////////
 
 function Traitement(id, init, update, validate,flip_canvas, reset, label){
 	if(typeof(label)!='string'){
@@ -948,8 +937,32 @@ function applyReal(traitement){
 	$('#traitement_parametre > div',settings.modal).removeClass('active');
 }
 
-var traitement = null
+
+var traitement = null;
+var filtre = null;
 function initTraitements(){
+
+	filtres = [
+		{id:	"vintage",		label:		settings.lang.vintage},
+		{id:	"lomo",			label:		settings.lang.lomo},
+		{id:	"clarity",		label:		settings.lang.clarity},
+		{id:	"sinCity",		label:		settings.lang.sinCity},
+		{id:	"sunrise",		label:		settings.lang.sunrise},
+		{id:	"crossProcess",		label:		settings.lang.crossProcess},
+		{id:	"orangePeel",		label:		settings.lang.orangePeel},
+		{id:	"love",			label:		settings.lang.love},
+		{id:	"grungy",		label:		settings.lang.grungy},
+		{id:	"jarques",		label:		settings.lang.jarques},
+		{id:	"pinhole",		label:		settings.lang.pinhole},
+		{id:	"oldBoot",		label:		settings.lang.oldBoot},
+		{id:	"glowingSun",		label:		settings.lang.glowingSun},
+		{id:	"hazyDays",		label:		settings.lang.hazyDays},
+		{id:	"herMajesty",		label:		settings.lang.herMajesty},
+		{id:	"nostalgia",		label:		settings.lang.nostalgia},
+		{id:	"hemingway",		label:		settings.lang.hemingway},
+		{id:	"concentrate",		label:		settings.lang.concentrate}, 
+		];
+
 	traitements = [
 			new Traitement('brightnessContrast', function(){
 				this.addSlider('brightness',-1, 1, 0, 0.1);
@@ -963,6 +976,8 @@ function initTraitements(){
 			}, function() {
 				///	REAL	
 				$('#loading_circle',settings.modal).show();
+				//canvas_glfx.height = image_modif.height;
+				//canvas_glfx.width = image_modif.width;
 				canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1340,5 +1355,6 @@ function initTraitements(){
 		];
 }
 
-delete flip, device;
+delete flip
+delete device;
 }(jQuery));
