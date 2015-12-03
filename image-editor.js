@@ -5,6 +5,7 @@
 //TODO ajouter progressBar pour upload
 //TODO Sauvegarde grande image chromium non fonctionnelle
 
+
 var script_to_load = [
 	"dependence/cropper.min.js",
 	"dependence/caman.full.js",
@@ -168,6 +169,9 @@ $.fn.imageEditor = function(options, action){
 
 }
 
+
+$.fn.imageEditor.personaliseLang = {};
+
 var deferred = $.Deferred();	///	Pour le when ... done
 
 function imageEditorInit(options){
@@ -199,9 +203,9 @@ function imageEditorInit(options){
 
 		}
 		getScript(settings.path + "lang/"+settings.lang+".js", false, function(data, textStatus){
-				settings.lang = $.extend({}, $.fn.imageEditor.prototype.lang);
+				settings.lang = $.extend({}, $.fn.imageEditor.prototype.lang, $.fn.imageEditor.personaliseLang);
 				delete $.fn.imageEditor.prototype.lang;
-				initTraitements()
+				initTraitements();
 			},
 			function(jqxhr, setting, exception){
 				settings.onLoadLangError(exception);
@@ -227,7 +231,7 @@ function imageEditorInit(options){
 			}
 			var modalAttr = {
 				main:{
-					class: 'modal fade',
+					class: 'modal fade image-editor',
 					id: id+i,
 					tabindex: '-1',
 					role: 'dialog',
@@ -322,7 +326,13 @@ function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
 	return ratio;
 }
 
-//$.fn.editImage = function(options){
+function checkFormatName(){
+	var index = settings.imageName.lastIndexOf(".");
+	if (index>0) {
+		settings.imageName = settings.imageName.replace(settings.imageName.substring(index, settings.imageName.length), "");
+        }
+}
+
 function imageEditorEdit(options){
 
 
@@ -336,6 +346,8 @@ function imageEditorEdit(options){
 	if(settings.maxWidth > defaults.maxWidth){
 		settings.maxWidth = defaults.maxHeight;
 	}
+
+	checkFormatName();
 
 	var format_ok = false;
 	for(var i = 0; i < format_possible.length; i++){
@@ -844,7 +856,6 @@ function upload(){
 		success: function(msg){
 			$('#loading_circle',settings.modal).hide();
 			settings.onUpload(msg);
-			console.log(msg);
 			modifNoSave = false;
 		},
 		error: function(msg){
