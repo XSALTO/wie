@@ -1,5 +1,6 @@
 (function ($){
-//
+//TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
+//TODO problème : 2 chargements de la langue(en clair finir la $.fn.imageEditor())
 //TODO ajouter préfixe aux variable (ex: ie-varibale)
 //TODO ajouter progressBar pour upload
 //TODO Sauvegarde grande image chromium non fonctionnelle
@@ -104,7 +105,7 @@ var defaults = {
 var modifNoSave = false;
 image_affiche.id = "image";
 
-image_affiche.className = "img-responsive center-block";
+image_affiche.className = "img-responsive center-block";urlImage:'http://dev-vdubois.xsalto.com/image-editor/image/unnamed4.jpg'
 image_base.className = "img-responsive center-block"; 
 image_base.crossOrigin="Anonymous";
 image_affiche.crossOrigin="Anonymous";
@@ -135,35 +136,44 @@ var filtres = [//	"normal",
 
 $.fn.imageEditor = function(options, action){
 
+//TODO transformet en 1 function qui créé et open(vérification si param 'hide') la modal
 
 	if(!action && typeof(options)=='string'){
 		action = options;
 		option = {};
-	}else if(!action && options.urlImage && settings.modal){ //Si une image et que la modal est déjà créé
-		action = 'show';
 	}
 	options.selector = this;
-	if(action){
-		switch (action){
-			case 'init':
-				imageEditorInit(options);
-				return;
-			case 'show':
-				imageEditorEdit(options);
-				return;
-			case 'hide':
-				settings.modal.modal('hide');
-				return;
-		}
+
+	if(!action && options.urlImage){ //Si une image en option et que la modal est déjà créé
+		action = 'show';
 	}
-	imageEditorInit(options)
+	
+	$.when(
+		{action:action},
+		imageEditorInit(options)
+	).done(function(event){
+		var action = event.action;
+		
+		if(action){
+			switch (action){
+				case 'show':
+					imageEditorEdit(options);
+					break;
+				case 'hide':
+					settings.modal.modal('hide');
+					break;
+			}
+		}
+	})
 
 }
 
-function imageEditorInit(options){
+var deferred = $.Deferred();	///	Pour le when ... done
 
+function imageEditorInit(options){
+	
 	if(settings.modal != null){
-		return;
+		return deferred.resolve();
 	}
 
 	if(options){
@@ -177,7 +187,7 @@ function imageEditorInit(options){
 	$.when(
 		//quand tout les scripts sont chargé
 		loadScripts()
-	).done(function(){
+	).done(function(event){
 		if(options.lang){
 			for(var i = 0; i < lang_possible.length; i++){
 				if(settings.lang == lang_possible[i]){
@@ -199,8 +209,7 @@ function imageEditorInit(options){
 			}
 		);
 
-		$(document).ready(function(){
-
+		$(document).ready(function(event){
 			try {
 				canvas_glfx = fx.canvas();
 			} catch (e) {
@@ -241,8 +250,10 @@ function imageEditorInit(options){
 			
 			settings.modal.on('hidden.bs.modal', settings.onHide);
 
+			return deferred.resolve();
 		});
 	});
+	return deferred;
 };
 
 function resizeCanvasImage(img, canvas, maxWidth, maxHeight) {
@@ -481,7 +492,7 @@ function filtreValidation(etat){//valider les traitements sur taille réel ou no
 			});
 		});
 	} else if (filtre_utilise != null){
-		Caman(canvaformatImageSaves_traitement, function(){
+		Caman(canvas_traitement, function(){
 			this.revert();
 			this.render(function(){
 				filtre_utilise = null;
