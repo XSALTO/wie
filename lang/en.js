@@ -19,6 +19,7 @@
 		validate_button:		"Validate",
 		cancel_button:			"Cancel",
 		close_msg:			"Exit without saving on the server ?",
+		close_uploading_msg:		"An upload is in progress, would you stop it and quit ?",
 		loading_image_msg:		"Loading...",
 		error_loading_image_msg:	"The image has not loaded",
 		error_msg:			"Error",

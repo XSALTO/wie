@@ -28,3 +28,8 @@
 .traitement-no-validate {
 	display: none;
 }
+
+#loading_circle {
+	max-height: 30px;
+	max-width: 30px
+}

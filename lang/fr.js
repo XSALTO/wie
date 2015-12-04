@@ -19,6 +19,7 @@
 		validate_button:		"Valider",
 		cancel_button:			"Annuler",
 		close_msg:			"Quitter sans sauvegarder sur le serveur ?",
+		close_uploading_msg:		"Une mise en ligne est en cours, voulez-vous l'arrêter et quitter ?",
 		loading_image_msg:		"Chargement...",
 		error_loading_image_msg:	"L'image n'a pas été chargé",
 		error_msg:			"Erreur",

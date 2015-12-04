@@ -1,8 +1,8 @@
 (function ($){
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
-//TODO ajouter préfixe aux variable (ex: ie-varibale)
-//TODO ajouter progressBar pour upload
+//TODO Ajouter préfixe aux variable (ex: ie-varibale)
 //TODO Télécharger grande image chromium non fonctionnelle
+//TODO Fonction pour remove la modal
 
 
 var script_to_load = [
@@ -103,6 +103,7 @@ var defaults = {
 	onShow: function(){}
 	};
 var modifNoSave = false;
+var uploading = false;
 image_affiche.id = "image";
 
 image_affiche.className = "img-responsive center-block";urlImage:'http://dev-vdubois.xsalto.com/image-editor/image/unnamed4.jpg'
@@ -215,7 +216,8 @@ function imageEditorInit(options){
 					tabindex: '-1',
 					role: 'dialog',
 					'aria-labelledby': 'modalImageEditor',
-					'data-backdrop': 'static'
+					'data-backdrop': 'static',
+					'data-keyboard': false
 				}, dialog: {
 					class: 'modal-dialog modal-lg',
 					role: 'document'
@@ -317,6 +319,8 @@ function imageEditorEdit(options){
 
 	if(settings.modal == null) return;
 
+	image_affiche.src = "";
+
 	delete options.modal;
 	delete options.path;
 	delete options.lang;
@@ -345,7 +349,7 @@ function imageEditorEdit(options){
 	}else{
 		image_affiche.style.background = "black";
 	}
-	settings.modal.modal({keyboard: false}).load(settings.path+'image-editor.html'+'?'+(new Date().getTime()), function(e){
+	settings.modal.modal().load(settings.path+'image-editor.html'+'?'+(new Date().getTime()), function(e){
 		$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.loading_image_msg+'</p>');
 		$('.modal-title', settings.modal).text(settings.lang.title+' - '+settings.imageName+'.'+settings.formatImageSave);
 		$('#loading_circle', settings.modal).attr({src: settings.path+'/dependence/loading_circle.gif'});
@@ -400,23 +404,23 @@ function imageEditorEdit(options){
 
 
 		//button close
-		var quit_validate = $('<div/>').appendTo('.modal-footer',settings.modal).hide().append('<p>'+settings.lang.close_msg+'</p>');
+		var quit_validate = $('<div/>').appendTo('.modal-footer',settings.modal).hide().append('<p id="close_msg">'+settings.lang.close_msg+'</p>');
 		$('<button/>').attr({class:'btn btn-success'}).text(settings.lang.cancel_button).appendTo(quit_validate);
 		$('<button/>').attr({class:'btn btn-danger'}).text(settings.lang.close_button).appendTo(quit_validate).on('click',function(){
+			if(uploading != false){
+				uploading.abort();
+			}
 			settings.modal.modal('hide');
 		});
 
 		var button_close = $('<button/>').attr({
 			type:'button',
 			class:'btn btn-danger',
-			id:'close_do_popover',
 			role:'button'})
 		.text(settings.lang.close_button)
 		.prependTo('.modal-footer #button-action',settings.modal)
 		.on('click',{quit_validate:quit_validate}, function(event){
-
-			if(settings.urlServeur && modifNoSave == true){
-			//	$(this).popover('show');
+			if(settings.urlServeur && (uploading != false || modifNoSave == true)){
 				$(event.data.quit_validate).show();
 				$(this).parent().hide();
 			}else{
@@ -426,7 +430,7 @@ function imageEditorEdit(options){
 
 		$('button', quit_validate).on('click',{quit_validate:quit_validate},function(event){
 			$(event.data.quit_validate).hide();
-			$('.modal-footer #button-action').show();
+			$('.modal-footer #button-action',settings.modal).show();
 		});
 
 
@@ -443,6 +447,8 @@ function imageEditorEdit(options){
 			.on('click',upload)
 			.prependTo('.modal-footer #button-action', settings.modal);
 		}
+		$('#loading_circle',settings.modal).show();
+		$('#percentUploaded', settings.modal).parent().hide();
 
 		settings.onShow();
 	});
@@ -458,6 +464,7 @@ function download() {
 	a.remove();
 }
 
+	$('#loading_circle',settings.modal).show();
 function affiche_base(){
 	$('#loading_circle',settings.modal).show();
 	var canvas_base = document.createElement('canvas');
@@ -538,7 +545,6 @@ function slider_change(slider, traitement, value){
 
 function reset(){
 	modifNoSave = false;
-	$('#loading_circle',settings.modal).show();
 	$('#filtre',settings.modal).empty();
 	$('#filtre_zone #validation',settings.modal).empty();
 	$('#traitement_zone',settings.modal).empty();
@@ -786,7 +792,7 @@ function setSelectedTraitement(traitement){
 function crop(){// JCrop
 	$('#loading_circle',settings.modal).show();
 	$('#image_zone #image',settings.modal).cropper();
-        $('#loading_circle',settings.modal).hide();
+	$('#loading_circle',settings.modal).hide();
 	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
 
@@ -834,22 +840,48 @@ function upload(){
         url = url.replace(regex,"");
 	$(regex).remove();
 	delete regex;
-	var progression = function(evt){
-		var progressBar = evt.data.progressBar;
-	};
-	$.ajax({
+	$('#percentUploaded', settings.modal).css('width','0%').attr('aria-valuenow', 0).text("0 %");
+	$('#close_msg', settings.modal).text(settings.lang.close_uploading_msg);
+	$('#percentUploaded',settings.modal).parent().show();
+	uploading = $.ajax({
 		type: 'POST',
 		url: settings.urlServeur,
-		data: { "imageData" : url, "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName },
+		data: { "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName, "imageData" : url },
 		success: function(msg){
+			uploading = false;
+			$('#close_msg', settings.modal).text(settings.lang.close_msg);
 			$('#loading_circle',settings.modal).hide();
 			modifNoSave = false;
+			$('#percentUploaded',settings.modal).parent().hide();
 			settings.onUpload(msg);
 		},
 		error: function(msg){
+			uploading = false;
+			$('#close_msg', settings.modal).text(settings.lang.close_msg);
 			settings.onUploadError(msg);
-		}
-	});
+		},
+		xhr: function(){
+			var xhr = new window.XMLHttpRequest();
+			//Upload progress
+			xhr.upload.addEventListener("progress", function(evt){
+				if (evt.lengthComputable) {
+					var percentComplete = evt.loaded / evt.total;
+					//Do something with upload progress
+					$('#percentUploaded', settings.modal).css('width', percentComplete*100+'%').attr('aria-valuenow', percentComplete*100).text((percentComplete*100).toFixed(1)+" %");
+					//console.log("up : "+percentComplete);
+				}
+			}, false);
+			//Download progress
+			xhr.addEventListener("progress", function(evt){
+				if (evt.lengthComputable) {
+					var percentComplete = evt.loaded / evt.total;
+					//Do something with download progress
+					//console.log("down : "+percentComplete);
+				}
+			}, false);
+			return xhr;
+			},
+		});
 
 	delete canvas_rendu_final;
 }
