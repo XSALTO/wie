@@ -25,6 +25,7 @@
 		error_msg:			"Erreur",
 		error_glfx_load_msg:		"glfx.js n'a pas chargé",
 		error_glfx_support_msg:		"Désolé, ce navigateur ne supporte pas WebGL",
+		checkbox_preview:		"Prévisualiser sur la taille reel",
 		
 
 		////////
@@ -71,6 +72,7 @@
 		'size':				"Taille",
 		'scale':			"Echelle",
 		'amount':			"Quantité",
+		'exponent':			"Exposant",
 
 
 		////////

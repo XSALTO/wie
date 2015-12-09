@@ -2,7 +2,14 @@
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
 //TODO Ajouter préfixe aux variable (ex: ie-varibale)
 //TODO Télécharger grande image chromium non fonctionnelle
-//TODO Fonction pour remove la modal
+//TODO Aperçu de traitement sur taille reel en utilisant checkbox ou autre/sur le clic du button
+//TODO Possibilité de ne pas afficher certains filtre/traitement
+
+//////////////
+//TODO TODO TODO
+//appliquer le ratio_image dans le on change slider (reel_....)  exemple traitement hexagon
+//////////////////////
+
 
 
 var script_to_load = [
@@ -106,7 +113,7 @@ var modifNoSave = false;
 var uploading = false;
 image_affiche.id = "image";
 
-image_affiche.className = "img-responsive center-block";urlImage:'http://dev-vdubois.xsalto.com/image-editor/image/unnamed4.jpg'
+image_affiche.className = "img-responsive center-block";
 image_base.className = "img-responsive center-block"; 
 image_base.crossOrigin="Anonymous";
 image_affiche.crossOrigin="Anonymous";
@@ -118,6 +125,10 @@ var image_position = {	'screen':{'left':0,'top':0},
 
 
 $.fn.imageEditor = function(options, action){
+
+	if(options == undefined){
+		options = {}
+	}
 
 	if(!action && typeof(options)=='string'){
 		action = options;
@@ -141,6 +152,10 @@ $.fn.imageEditor = function(options, action){
 					imageEditorEdit(options);
 					break;
 				case 'hide':
+					settings.modal.modal('hide');
+					break;
+				case 'remove':
+					settings.modal.on('hidden.bs.modal', function(){settings.modal.remove();});
 					settings.modal.modal('hide');
 					break;
 			}
@@ -628,6 +643,20 @@ function reset(){
 			.appendTo(th);
                 }
 
+		//////////
+		//  Checkbox pour preview reel
+		//////////
+		$('<span/>').text(settings.lang.checkbox_preview)
+		.insertAfter(
+		$('<input />').attr({type:'checkbox'})
+		.on('change', {traitement:traitement}, function(event){
+			var traitement = event.data.traitement;
+			traitement.previewReel = $(this).is(':checked');
+			traitement.update();
+		}).appendTo(
+		$('<label/>').appendTo(
+		$('<div/>').attr({class: 'checkbox', id:'checkbox_preview'}).appendTo('#'+traitement.id, settings.modal))));
+
 
 		//////////
 		//  Valider/Annuler
@@ -890,7 +919,7 @@ function upload(){
 //	Traitements et Filtres	  //
 ////////////////////////////////////
 
-function Traitement(id, init, update, validate,flip_canvas, reset, label){
+function Traitement(id, init, update, validate,flip_canvas, label){
 	if(typeof(label)!='string'){
 		if(settings.lang[id]){
 			label = settings.lang[id];
@@ -901,11 +930,11 @@ function Traitement(id, init, update, validate,flip_canvas, reset, label){
 	this.label = label;
 	this.id = id;
 	this.update = update;
-	this.reset = reset;
 	this.sliders = [];
 	this.nubs = [];
 	this.flip_canvas = flip_canvas;
 	this.validate = validate;
+	this.previewReel = false;
 	init.call(this);
 }
 
@@ -934,16 +963,30 @@ for(var i = 0; i < devices_glfx_flip.length; i++){
 }
 
 function applyPreview(traitement){
-	if(traitement.flip_canvas){
-		var canvas_flip = document.createElement('canvas');
-		canvas_flip.height = canvas_glfx.height;
-		canvas_flip.width = canvas_glfx.width;
-		canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
-		image_affiche.src = canvas_flip.toDataURL("image/png");
-		$(canvas_flip).remove();
-		delete canvas_flip;
-	} else {
-		image_affiche.src = canvas_glfx.toDataURL("image/png");
+	if(traitement.previewReel){
+		var canvas_temp = document.createElement('canvas');
+		var image_temp = new Image();
+		image_temp.src = canvas_glfx.toDataURL('image/png');
+		canvas_temp.getContext('2d').drawImage(image_temp,0,0);
+		resizeCanvasImage(image_temp, canvas_temp,550,550);
+		image_affiche.src = canvas_temp.toDataURL('image/png');
+		canvas_temp.remove();
+		delete canvas_temp;
+		image_temp.remove();
+		delete image_temp;
+
+	}else{
+		if(traitement.flip_canvas){
+			var canvas_flip = document.createElement('canvas');
+			canvas_flip.height = canvas_glfx.height;
+			canvas_flip.width = canvas_glfx.width;
+			canvas_flip.getContext('2d').drawImage(canvas_glfx,0,0);
+			image_affiche.src = canvas_flip.toDataURL("image/png");
+			$(canvas_flip).remove();
+			delete canvas_flip;
+		} else {
+			image_affiche.src = canvas_glfx.toDataURL("image/png");
+		}
 	}
 	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
@@ -1003,7 +1046,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).brightnessContrast(this.brightness, this.contrast).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
+				}else{
+					canvas_glfx.draw(texture).brightnessContrast(this.brightness, this.contrast).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1013,7 +1060,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('hueSaturation', function() {
@@ -1022,7 +1068,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).hueSaturation(this.hue, this.saturation).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
+				}else{
+					canvas_glfx.draw(texture).hueSaturation(this.hue, this.saturation).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1032,7 +1082,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('vibrance', function() {
@@ -1040,7 +1089,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).vibrance(this.amount).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).vibrance(this.amount).update();
+				}else{
+					canvas_glfx.draw(texture).vibrance(this.amount).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1050,7 +1103,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('denoise', function() {
@@ -1058,7 +1110,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).denoise(this.exponent).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).denoise(this.exponent).update();
+				}else{
+					canvas_glfx.draw(texture).denoise(this.exponent).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1068,7 +1124,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('unsharpMask', function() {
@@ -1077,7 +1132,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).unsharpMask(this.radius, this.strength).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).unsharpMask(this.radius, this.strength).update();
+				}else{
+					canvas_glfx.draw(texture).unsharpMask(this.radius, this.strength).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1087,7 +1146,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('noise', function() {
@@ -1095,7 +1153,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).noise(this.amount).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).noise(this.amount).update();
+				}else{
+					canvas_glfx.draw(texture).noise(this.amount).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1105,7 +1167,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('sepia', function() {
@@ -1113,7 +1174,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).sepia(this.amount).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).sepia(this.amount).update();
+				}else{
+					canvas_glfx.draw(texture).sepia(this.amount).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1123,7 +1188,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('vignette', function() {
@@ -1132,7 +1196,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).vignette(this.size,this.amount).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).vignette(this.size,this.amount).update();
+				}else{
+					canvas_glfx.draw(texture).vignette(this.size,this.amount).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1142,7 +1210,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	//////////////////////////////////////////////////////
 			new Traitement('zoomBlur', function() {
@@ -1151,7 +1218,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).zoomBlur(this.center.x,this.center.y,this.strength).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).zoomBlur(this.center.reel_x,this.center.reel_y,this.strength).update();
+				}else{
+					canvas_glfx.draw(texture).zoomBlur(this.center.x,this.center.y,this.strength).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1161,7 +1232,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('tiltShift', function() {
@@ -1172,7 +1242,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.reel_x, this.start.reel_y, this.end.reel_x, this.end.reel_y, this.blurRadius, this.gradientRadius).update();
+				}else{
+					canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1182,7 +1256,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('triangleBlur', function() {
@@ -1190,7 +1263,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).triangleBlur(this.radius).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).triangleBlur(this.radius).update();
+				}else{
+					canvas_glfx.draw(texture).triangleBlur(this.radius).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1200,7 +1277,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('lensBlur', function() {
@@ -1210,7 +1286,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).lensBlur(this.radius,this.brightness,this.angle).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).lensBlur(this.radius,this.brightness,this.angle).update();
+				}else{
+					canvas_glfx.draw(texture).lensBlur(this.radius,this.brightness,this.angle).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1220,7 +1300,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('swirl', function() {
@@ -1230,17 +1309,20 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).swirl(this.center.x,this.center.y,this.radius,this.angle).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).swirl(this.center.reel_x,this.center.reel_y,this.radius/ratio_image,this.angle).update();
+				}else{
+					canvas_glfx.draw(texture).swirl(this.center.x,this.center.y,this.radius,this.angle).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
 				///	REAL	
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(canvas_glfx.texture(image_modif)).swirl(this.center.reel_x,this.center.reel_y,this.radius,this.angle).update();
+				canvas_glfx.draw(canvas_glfx.texture(image_modif)).swirl(this.center.reel_x,this.center.reel_y,this.radius/ratio_image,this.angle).update();
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('bulgePinch', function() {
@@ -1250,7 +1332,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).bulgePinch(this.center.x,this.center.y,this.radius,this.strength).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).bulgePinch(this.center.reel_x,this.center.reel_y,this.radius,this.strength).update();
+				}else{
+					canvas_glfx.draw(texture).bulgePinch(this.center.x,this.center.y,this.radius,this.strength).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1260,7 +1346,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('perspective', function() {
@@ -1271,6 +1356,9 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
+
+				this.previewReel = false;
+
 				this.after = [this.a.x,this.a.y,this.b.x,this.b.y,this.c.x,this.c.y,this.d.x,this.d.y];
 				this.before = [0,0,image_affiche.width, 0,0,image_affiche.height,image_affiche.width,image_affiche.height];
 				canvas_glfx.draw(texture).perspective(this.before, this.after).update();
@@ -1285,7 +1373,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('ink', function() {
@@ -1293,7 +1380,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).ink(this.strength).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).ink(this.strength).update();
+				}else{
+					canvas_glfx.draw(texture).ink(this.strength).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1303,7 +1394,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('edgeWork', function() {
@@ -1311,7 +1401,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).edgeWork(this.radius).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).edgeWork(this.radius).update();
+				}else{
+					canvas_glfx.draw(texture).edgeWork(this.radius).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1321,7 +1415,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('hexagonalPixelate', function() {
@@ -1330,7 +1423,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).hexagonalPixelate(this.center.x,this.center.y,this.scale).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).hexagonalPixelate(this.center.reel_x,this.center.reel_y,this.scale*ratio_image).update();
+				}else{
+					canvas_glfx.draw(texture).hexagonalPixelate(this.center.x,this.center.y,this.scale*ratio_image).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1340,7 +1437,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('dotScreen', function() {
@@ -1350,7 +1446,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).dotScreen(this.center.x,this.center.y,this.angle,this.size).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).dotScreen(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
+				}else{
+					canvas_glfx.draw(texture).dotScreen(this.center.x,this.center.y,this.angle,this.size).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1360,7 +1460,6 @@ function initTraitements(){
 				applyReal(this);
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('colorHalftone', function() {
@@ -1370,7 +1469,11 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-				canvas_glfx.draw(texture).colorHalftone(this.center.x,this.center.y,this.angle,this.size).update();
+				if(this.previewReel){
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).colorHalftone(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
+				}else{
+					canvas_glfx.draw(texture).colorHalftone(this.center.x,this.center.y,this.angle,this.size).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1381,7 +1484,6 @@ function initTraitements(){
 
 				$('#loading_circle',settings.modal).hide();
 			}, flip
-			,null
 			,null),
 		];
 }
