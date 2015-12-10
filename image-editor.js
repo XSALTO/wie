@@ -5,12 +5,6 @@
 //TODO Aperçu de traitement sur taille reel en utilisant checkbox ou autre/sur le clic du button
 //TODO Possibilité de ne pas afficher certains filtre/traitement
 
-//////////////
-//TODO TODO TODO
-//appliquer le ratio_image dans le on change slider (reel_....)  exemple traitement hexagon
-//////////////////////
-
-
 
 var script_to_load = [
 	"dependence/cropper.min.js",
@@ -228,7 +222,7 @@ function imageEditorInit(options){
 				main:{
 					class: 'modal fade image-editor',
 					id: id+i,
-					tabindex: '-1',
+					//tabindex: '-1',
 					role: 'dialog',
 					'aria-labelledby': 'modalImageEditor',
 					'data-backdrop': 'static',
@@ -381,6 +375,13 @@ function imageEditorEdit(options){
 			image_modif.src = canvas_traitement.toDataURL('image/'+settings.formatImageSave,1);
 			$(canvas_traitement).remove();
 			canvas_traitement = document.createElement('canvas');
+			$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
+			$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
+			$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
+			$('#li_comparer',settings.modal).on('click',function(){cropValidation(false);affiche_base();}).text(settings.lang.compare);
+			$('#li_reset',settings.modal).on('click',function(e){annuler();reset();}).text(settings.lang.reset);
+
+			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
 		};
 
 		image_modif.onload = function(){
@@ -407,14 +408,7 @@ function imageEditorEdit(options){
 
 		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
 		image_modif.src = settings.urlImage;
-		$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
-		$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
-		$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
-		$('#li_comparer',settings.modal).on('click',function(){$("#image_zone #image",settings.modal).cropper('destroy');affiche_base();}).text(settings.lang.compare);
-		$('#li_reset',settings.modal).on('click',function(){annuler();reset()}).text(settings.lang.reset);
-
-		$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
-		$('#crop #valider',settings.modal).text(settings.lang.validate_button);
+				$('#crop #valider',settings.modal).text(settings.lang.validate_button);
 		$('#crop #annuler',settings.modal).text(settings.lang.cancel_button);
 
 
@@ -604,7 +598,7 @@ function reset(){
        for(var i = 0; i < traitements.length; i++){
 		var traitement = traitements[i];
 		
-		$('<button />').attr({'data-toggle':"tab", href:'#'+traitement.id, class:'btn'})
+		$('<button />').attr({'data-toggle':"tab", href:'#'+traitement.id, class:'btn', type:'button'})
 		.text(traitement.label)
 		.on('click',{traitement:traitement},function(event){
 			var traitement = event.data.traitement;
@@ -715,7 +709,7 @@ function setSelectedTraitement(traitement){
 	// Reset all sliders
 	for (var i = 0; i < traitement.sliders.length; i++) {
 		var slider = traitement.sliders[i];
-		document.getElementById(slider.id).value = parseFloat(slider.value);
+		$('#'+traitement.id+' #'+slider.id, settings.modal).val(parseFloat(slider.value));
 		traitement[slider.id] = parseFloat(slider.value);
 	}
 
@@ -744,15 +738,15 @@ function setSelectedTraitement(traitement){
                         var nub = event.data.nub;
                         var position_actuel_x = offset.left + $(nub).width()/2 - image_position.screen.left;
                         var position_actuel_y = offset.top + $(nub).height()/2 - image_position.screen.top;
-                        var x = (e.touches[0].pageX - image_position.screen.left)*(canvas_glfx.width/$('#image',settings.modal).width());
-                        var y = (e.touches[0].pageY - image_position.screen.top)*(canvas_glfx.height/$('#image',settings.modal).height());
+                        var x = (e.touches[0].pageX - image_position.screen.left)*(image_affiche.naturalWidth/$('#image',settings.modal).width());
+                        var y = (e.touches[0].pageY - image_position.screen.top)*(image_affiche.naturalHeight/$('#image',settings.modal).height());
 
                         if(x<0) x = 0;
-                        if(x>canvas_glfx.width) x = canvas_glfx.width;
+                        if(x>image_affiche.naturalWidth) x = image_affiche.naturalWidth;
                         if(y<0) y = 0;
-                        if(y>canvas_glfx.height) y = canvas_glfx.height;
+                        if(y>image_affiche.naturalHeight) y = image_affiche.naturalHeight;
 
-			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/image_affiche.naturalWidth))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/image_affiche.naturalHeight))+ image_position.modal.top});
 
 			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image };
 
@@ -762,16 +756,16 @@ function setSelectedTraitement(traitement){
 		var onmousemove = (function(event) {////	SOURIS
 			var offset = $(event.target).offset();
 			var nub = event.data.nub;
-			var x = (event.pageX - image_position.screen.left)*(canvas_glfx.width/$('#image',settings.modal).width());
-			var y = (event.pageY - image_position.screen.top)*(canvas_glfx.height/$('#image',settings.modal).height());
+			var x = (event.pageX - image_position.screen.left)*(image_affiche.naturalWidth/$('#image',settings.modal).width());
+			var y = (event.pageY - image_position.screen.top)*(image_affiche.naturalHeight/$('#image',settings.modal).height());
 
                         if(x<0) x = 0;
-                        if(x>canvas_glfx.width) x = canvas_glfx.width;
+                        if(x>image_affiche.naturalWidth) x = image_affiche.naturalWidth;
                         if(y<0) y = 0;
-                        if(y>canvas_glfx.height) y = canvas_glfx.height;
+                        if(y>image_affiche.naturalHeight) y = image_affiche.naturalHeight;
 			
-			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});			
-			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/image_affiche.naturalWidth))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/image_affiche.naturalHeight))+ image_position.modal.top});			
+			traitement[nub.id] = { x: x, y: y, reel_x: x/(ratio_image*(image_affiche.width/image_affiche.naturalWidth)), reel_y: y/(ratio_image*(image_affiche.height/image_affiche.naturalHeight))};
 			traitement.update();
 		});
 
@@ -805,7 +799,7 @@ function setSelectedTraitement(traitement){
                         image_position.screen.top = ($('#'+nub.id,settings.modal).parent().height() - $('#image',settings.modal).height())/2 + $('#'+nub.id,settings.modal).parent().offset().top;
                         image_position.modal.left = image_position.screen.left - ($('#image_zone',settings.modal).offset().left - $('#'+nub.id,settings.modal).parent().position().left);
                        	image_position.modal.top = image_position.screen.top - ($('#'+nub.id,settings.modal).parent().offset().top - $('#'+nub.id,settings.modal).parent().position().top);
-			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/canvas_glfx.width))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/canvas_glfx.height))+ image_position.modal.top});
+			$('#' + nub.id,settings.modal).css({ left: (x*($('#image',settings.modal).width()/image_affiche.naturalWidth))+ image_position.modal.left,  top: (y*($('#image',settings.modal).height()/image_affiche.naturalHeight))+ image_position.modal.top});
 		};
 
 		$(window).on('orientationchange',{nub:nub,traitement:traitement},actualisePos);
@@ -847,7 +841,7 @@ function annuler(){
 	cropValidation("false");
 	filtreValidation("false");
 	setSelectedTraitement(null);
-	$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
+	//$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 }
 
 function upload(){
@@ -966,15 +960,18 @@ function applyPreview(traitement){
 	if(traitement.previewReel){
 		var canvas_temp = document.createElement('canvas');
 		var image_temp = new Image();
+		$(image_temp).load({image_temp:image_temp, canvas_temp:canvas_temp},function(event){
+			var image_temp = event.data.image_temp;
+			var canvas_temp = event.data.canvas_temp;
+			canvas_temp.getContext('2d').drawImage(image_temp,0,0);
+			resizeCanvasImage(image_temp, canvas_temp,550,550);
+			image_affiche.src = canvas_temp.toDataURL('image/png');
+			canvas_temp.remove();
+			delete canvas_temp;
+			image_temp.remove();
+			delete image_temp;
+		});
 		image_temp.src = canvas_glfx.toDataURL('image/png');
-		canvas_temp.getContext('2d').drawImage(image_temp,0,0);
-		resizeCanvasImage(image_temp, canvas_temp,550,550);
-		image_affiche.src = canvas_temp.toDataURL('image/png');
-		canvas_temp.remove();
-		delete canvas_temp;
-		image_temp.remove();
-		delete image_temp;
-
 	}else{
 		if(traitement.flip_canvas){
 			var canvas_flip = document.createElement('canvas');
@@ -1113,7 +1110,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).denoise(this.exponent).update();
 				}else{
-					canvas_glfx.draw(texture).denoise(this.exponent).update();
+					canvas_glfx.draw(texture).denoise(this.exponent+ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1135,7 +1132,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).unsharpMask(this.radius, this.strength).update();
 				}else{
-					canvas_glfx.draw(texture).unsharpMask(this.radius, this.strength).update();
+					canvas_glfx.draw(texture).unsharpMask(this.radius*ratio_image, this.strength).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1156,7 +1153,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).noise(this.amount).update();
 				}else{
-					canvas_glfx.draw(texture).noise(this.amount).update();
+					canvas_glfx.draw(texture).noise(this.amount*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1245,7 +1242,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.reel_x, this.start.reel_y, this.end.reel_x, this.end.reel_y, this.blurRadius, this.gradientRadius).update();
 				}else{
-					canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius, this.gradientRadius).update();
+					canvas_glfx.draw(texture).tiltShift(this.start.x, this.start.y, this.end.x, this.end.y, this.blurRadius*ratio_image, this.gradientRadius*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1266,7 +1263,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).triangleBlur(this.radius).update();
 				}else{
-					canvas_glfx.draw(texture).triangleBlur(this.radius).update();
+					canvas_glfx.draw(texture).triangleBlur(this.radius*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1289,7 +1286,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).lensBlur(this.radius,this.brightness,this.angle).update();
 				}else{
-					canvas_glfx.draw(texture).lensBlur(this.radius,this.brightness,this.angle).update();
+					canvas_glfx.draw(texture).lensBlur(this.radius*ratio_image,this.brightness,this.angle).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1335,7 +1332,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).bulgePinch(this.center.reel_x,this.center.reel_y,this.radius,this.strength).update();
 				}else{
-					canvas_glfx.draw(texture).bulgePinch(this.center.x,this.center.y,this.radius,this.strength).update();
+					canvas_glfx.draw(texture).bulgePinch(this.center.x,this.center.y,this.radius*ratio_image,this.strength).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1356,12 +1353,16 @@ function initTraitements(){
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
-
-				this.previewReel = false;
-
-				this.after = [this.a.x,this.a.y,this.b.x,this.b.y,this.c.x,this.c.y,this.d.x,this.d.y];
-				this.before = [0,0,image_affiche.width, 0,0,image_affiche.height,image_affiche.width,image_affiche.height];
-				canvas_glfx.draw(texture).perspective(this.before, this.after).update();
+				if(this.previewReel){
+					this.before = [0,0,image_modif.width, 0,0,image_modif.height,image_modif.width,image_modif.height];
+					this.after = [this.a.reel_x,this.a.reel_y,this.b.reel_x,this.b.reel_y,this.c.reel_x,this.c.reel_y,this.d.reel_x,this.d.reel_y];
+					//this.after = [this.a.x,this.a.y,this.b.x,this.b.y,this.c.x,this.c.y,this.d.x,this.d.y];
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).perspective(this.before, this.after).update();
+				}else{
+					this.after = [this.a.x,this.a.y,this.b.x,this.b.y,this.c.x,this.c.y,this.d.x,this.d.y];
+					this.before = [0,0,image_affiche.width, 0,0,image_affiche.height,image_affiche.width,image_affiche.height];
+					canvas_glfx.draw(texture).perspective(this.before, this.after).update();
+				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
 			}, function() {
@@ -1376,14 +1377,14 @@ function initTraitements(){
 			,null),
 	/////////////////////////////////////////////////////
 			new Traitement('ink', function() {
-				this.addSlider('strength', 0, 1, 0.25, 0.01);
+				this.addSlider('strength', -1, 1, 0, 0.01);
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).ink(this.strength).update();
 				}else{
-					canvas_glfx.draw(texture).ink(this.strength).update();
+					canvas_glfx.draw(texture).ink(this.strength*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1404,7 +1405,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).edgeWork(this.radius).update();
 				}else{
-					canvas_glfx.draw(texture).edgeWork(this.radius).update();
+					canvas_glfx.draw(texture).edgeWork(this.radius*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1424,7 +1425,7 @@ function initTraitements(){
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
 				if(this.previewReel){
-					canvas_glfx.draw(canvas_glfx.texture(image_modif)).hexagonalPixelate(this.center.reel_x,this.center.reel_y,this.scale*ratio_image).update();
+					canvas_glfx.draw(canvas_glfx.texture(image_modif)).hexagonalPixelate(this.center.reel_x,this.center.reel_y,this.scale).update();
 				}else{
 					canvas_glfx.draw(texture).hexagonalPixelate(this.center.x,this.center.y,this.scale*ratio_image).update();
 				}
@@ -1449,7 +1450,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).dotScreen(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
 				}else{
-					canvas_glfx.draw(texture).dotScreen(this.center.x,this.center.y,this.angle,this.size).update();
+					canvas_glfx.draw(texture).dotScreen(this.center.x,this.center.y,this.angle,this.size*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
@@ -1472,7 +1473,7 @@ function initTraitements(){
 				if(this.previewReel){
 					canvas_glfx.draw(canvas_glfx.texture(image_modif)).colorHalftone(this.center.reel_x,this.center.reel_y,this.angle,this.size).update();
 				}else{
-					canvas_glfx.draw(texture).colorHalftone(this.center.x,this.center.y,this.angle,this.size).update();
+					canvas_glfx.draw(texture).colorHalftone(this.center.x,this.center.y,this.angle,this.size*ratio_image).update();
 				}
 				applyPreview(this);
 				$('#loading_circle',settings.modal).hide();
