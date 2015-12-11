@@ -7,9 +7,11 @@
 
 
 var script_to_load = [
-	"dependence/cropper.min.js",
-	"dependence/caman.full.js",
-	"dependence/glfx.js"];
+	{url:"dependence/cropper.min.js", 	ok:false},
+	{url:"dependence/caman.full.js",	ok:false},
+	{url:"dependence/glfx.js",		ok:false}
+	];
+var script_loaded = 0;
 var devices_glfx_flip = [
 	'iPad Simulator',
 	'iPhone Simulator',
@@ -45,21 +47,24 @@ function loadScripts(){
 	return $.Deferred(function(){
 		var self = this;
 		function isDone(){
-			if(script_loaded == script_to_load.length){
+			if(script_loaded >= script_to_load.length){
 				self.resolve();
 			}
 		}
-		var script_loaded = 0;
 		for(var i = 0; i < script_to_load.length; i++){
-			$.when($.getScript(settings.path+script_to_load[i])).done(
-				function(){
-					script_loaded++;
-					isDone();
-				}
-			).fail(function(){
-				settings.onLoadScriptError(this.url);
-			});
+			if(!script_to_load[i].ok){
+				$.when({i:i},$.getScript(settings.path+script_to_load[i].url)).done(
+					function(event){
+						script_to_load[event.i].ok = true;
+						script_loaded++;
+						isDone();
+					}
+				).fail(function(){
+					settings.onLoadScriptError(this.url);
+				});
+			}
 		}
+		isDone();
 	});
 }
 
@@ -94,7 +99,7 @@ var defaults = {
 	maxHeight: 4096,
 	maxWidth: 4096,
 	modal: null,
-	onUpload: function(){},
+	onUpload: function(serverMsg){},
 	onUploadError: function(){},
 	onHide: function(){},
 	onLoadImageError: function(){},
@@ -117,7 +122,6 @@ var image_position = {	'screen':{'left':0,'top':0},
 			'modal':{'left':0,'top':0}	} ;
 
 $.fn.imageEditor = function(options, action){
-
 	if(options == undefined){
 		options = {}
 	}
@@ -128,8 +132,11 @@ $.fn.imageEditor = function(options, action){
 	}
 	options.selector = this;
 
-	if(!action && options.urlImage){ //Si une image en option et que la modal est déjà créé
+	if(!action && options.urlImage){ //Si une image en option
 		action = 'show';
+	}
+	if(!settings.modal && action=='remove'){
+		return;
 	}
 	
 	$.when(
@@ -153,8 +160,13 @@ $.fn.imageEditor = function(options, action){
 					settings.modal.modal('hide');
 					break;
 				case 'remove':
-					settings.modal.on('hidden.bs.modal', function(){settings.modal.remove();});
-					settings.modal.modal('hide');
+					if($(settings.modal).hasClass('in')){
+						settings.modal.on('hidden.bs.modal', function(){this.remove();});
+						settings.modal.modal('hide');
+					}else{
+						settings.modal.remove();
+					}
+					delete settings.modal;
 					break;
 			}
 		}
@@ -252,6 +264,7 @@ function imageEditorInit(options){
 			$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
 			
 			settings.modal.on('hidden.bs.modal', settings.onHide);
+			settings.modal.on('shown.bs.modal', settings.onShow);
 
 			return deferred.resolve();
 		});
@@ -464,7 +477,6 @@ function imageEditorEdit(options){
 		$('#loading_circle',settings.modal).show();
 		$('#percentUploaded', settings.modal).parent().hide();
 
-		settings.onShow();
 	});
 
 }
@@ -834,7 +846,7 @@ function setSelectedTraitement(traitement){
 	traitement.update();
 }
 
-function crop(){// JCrop
+function crop(){// Cropper(http://fengyuanchen.github.io/cropper/)
 	$('#loading_circle',settings.modal).show();
 	$('#image_zone #image',settings.modal).cropper();
 	$('#loading_circle',settings.modal).hide();
