@@ -130,7 +130,11 @@ $.fn.imageEditor = function(options, action){
 		action = options;
 		options = {};
 	}
-	options.selector = this;
+	if(this !== window){
+		options.selector = this;
+	}else{
+		options.selector = null;
+	}
 
 	if(!action && options.urlImage){ //Si une image en option
 		action = 'show';
@@ -195,9 +199,11 @@ function imageEditorInit(options){
 	}
 	settings = $.extend({},defaults,options);
 	var zone = null;
-	options.selector.each(function(){
-		zone = $(this);
-	});
+	if(options.selector){
+		options.selector.each(function(){
+			zone = $(this);
+		});
+	}
 	$.when(
 		//quand tout les scripts sont chargé
 		loadScripts()
@@ -424,9 +430,12 @@ function imageEditorEdit(options){
 		image_base.onerror = erreur;
 		image_affiche.onerror = erreur;
 
-		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
-		image_modif.src = settings.urlImage;
-				$('#crop #valider',settings.modal).text(settings.lang.validate_button);
+		$('#li_crop',settings.modal).text(settings.lang.crop);
+		$('#li_filtre',settings.modal).text(settings.lang.filters);
+		$('#li_traitement',settings.modal).text(settings.lang.image_process);
+		$('#li_comparer',settings.modal).text(settings.lang.compare);
+		$('#li_reset',settings.modal).text(settings.lang.reset);
+		$('#crop #valider',settings.modal).text(settings.lang.validate_button);
 		$('#crop #annuler',settings.modal).text(settings.lang.cancel_button);
 
 
@@ -476,6 +485,11 @@ function imageEditorEdit(options){
 		}
 		$('#loading_circle',settings.modal).show();
 		$('#percentUploaded', settings.modal).parent().hide();
+
+
+
+		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
+		image_modif.src = settings.urlImage;
 
 	});
 
