@@ -116,8 +116,6 @@ image_modif.crossOrigin="Anonymous";
 var image_position = {	'screen':{'left':0,'top':0},
 			'modal':{'left':0,'top':0}	} ;
 
-
-
 $.fn.imageEditor = function(options, action){
 
 	if(options == undefined){
@@ -126,7 +124,7 @@ $.fn.imageEditor = function(options, action){
 
 	if(!action && typeof(options)=='string'){
 		action = options;
-		option = {};
+		options = {};
 	}
 	options.selector = this;
 
@@ -135,10 +133,16 @@ $.fn.imageEditor = function(options, action){
 	}
 	
 	$.when(
-		{action:action},
+		{action:action, options:options},
 		imageEditorInit(options)
 	).done(function(event){
 		var action = event.action;
+		var options = event.options;
+		
+		delete options.modal;
+		delete options.path;
+		delete options.lang;
+		settings = $.extend({}, defaults, settings, options);
 		
 		if(action){
 			switch (action){
@@ -154,12 +158,17 @@ $.fn.imageEditor = function(options, action){
 					break;
 			}
 		}
+		delete options.modal;
+		delete options.path;
+		delete options.lang;
+		settings = $.extend({}, defaults, settings, options);
 	})
-
 }
 
-
+/////// Après la déclaration de imageEditor
 $.fn.imageEditor.personaliseLang = {};
+$.fn.imageEditor.noDisplayTraitements = [];
+$.fn.imageEditor.noDisplayFiltres = [];
 
 var deferred = $.Deferred();	///	Pour le when ... done
 
@@ -330,10 +339,6 @@ function imageEditorEdit(options){
 
 	image_affiche.src = "";
 
-	delete options.modal;
-	delete options.path;
-	delete options.lang;
-	settings = $.extend({}, defaults, settings, options);
 	if(settings.maxHeight > defaults.maxHeight){
 		settings.maxHeight = defaults.maxHeight;
 	}
@@ -379,7 +384,7 @@ function imageEditorEdit(options){
 			$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
 			$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
 			$('#li_comparer',settings.modal).on('click',function(){cropValidation(false);affiche_base();}).text(settings.lang.compare);
-			$('#li_reset',settings.modal).on('click',function(e){annuler();reset();}).text(settings.lang.reset);
+			$('#li_reset',settings.modal).on('click',function(){annuler();reset();}).text(settings.lang.reset);
 
 			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
 		};
@@ -575,10 +580,19 @@ function reset(){
 	/////////
         for(var i = 0; i < filtres.length; i++){
 		var filtre = filtres[i];
-		$('<button />').attr({type:"button", class:"btn", id:filtre.id})
-		.text(filtre.label)
-		.appendTo('#filtre',settings.modal)
-		.on('click', function(){camanFiltre(this.id)});
+		var display = true;
+		for(var j = 0; j < $.fn.imageEditor.noDisplayFiltres.length;j++){
+			if(filtre.id == $.fn.imageEditor.noDisplayFiltres[j]){
+				display = false;
+				break;
+			}
+		}
+		if(display){
+			$('<button />').attr({type:"button", class:"btn", id:filtre.id})
+			.text(filtre.label)
+			.appendTo('#filtre',settings.modal)
+			.on('click', function(){camanFiltre(this.id)});
+		}
         }
 	$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
 	.text(settings.lang.validate_button)
@@ -597,92 +611,100 @@ function reset(){
 	$('<div />').attr({id:"traitement_parametre", class:"tab-content"}).appendTo('#traitement_zone',settings.modal);
        for(var i = 0; i < traitements.length; i++){
 		var traitement = traitements[i];
-		
-		$('<button />').attr({'data-toggle':"tab", href:'#'+traitement.id, class:'btn', type:'button'})
-		.text(traitement.label)
-		.on('click',{traitement:traitement},function(event){
-			var traitement = event.data.traitement;
-			setSelectedTraitement(traitement);
-		})
-		.appendTo('#traitement',settings.modal);
-
-		var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
-		$('<p/>').text(traitement.label).attr({style:'text-align: center;'}).appendTo(div_traitement);
-
-                /////////
-                //  Sliders
-                ///////// 
-		if(traitement.sliders.length){
-			var table = $('<table />').attr({class:'table'}).appendTo(div_traitement);
-		}
-                for(var j = 0; j < traitement.sliders.length; j++){
-			var slider = traitement.sliders[j];
-			var tr = $('<tr />').appendTo(table);
-			$('<th />').text(slider.label).appendTo(tr);
-                        traitement[slider.id] = slider.value;
-			var th = $('<th />').appendTo(tr);
-                        $('<input />').attr({
-				type:"range", 
-				id:slider.id,
-                                min: slider.min,
-                                max: slider.max,
-                                value: slider.value,
-                                step: slider.step
-                        }).on('input',{slider:slider,traitement:traitement},function(event){
-				slider_change(event.data.slider, event.data.traitement, $(this).val())   
-			})
-                        .on('change',{slider:slider,traitement:traitement},function(event){
-				slider_change(event.data.slider, event.data.traitement, $(this).val())
-			})
-			.appendTo(th);
-                }
-
-		//////////
-		//  Checkbox pour preview reel
-		//////////
-		$('<span/>').text(settings.lang.checkbox_preview)
-		.insertAfter(
-		$('<input />').attr({type:'checkbox'})
-		.on('change', {traitement:traitement}, function(event){
-			var traitement = event.data.traitement;
-			traitement.previewReel = $(this).is(':checked');
-			traitement.update();
-		}).appendTo(
-		$('<label/>').appendTo(
-		$('<div/>').attr({class: 'checkbox', id:'checkbox_preview'}).appendTo('#'+traitement.id, settings.modal))));
-
-
-		//////////
-		//  Valider/Annuler
-		//////////
-		$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
-		.text(settings.lang.validate_button)
-		.appendTo('#'+traitement.id,settings.modal)
-		.on('click',{traitement:traitement},function(event){
-			event.data.traitement.validate();
-		});
-		$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
-		.text(settings.lang.cancel_button)
-		.appendTo('#'+traitement.id,settings.modal)
-		.on('click',function(){setSelectedTraitement(null)});
-        
-
-	        /////////
-                //  Nubs (position sur l'image)
-                /////////
-		var nub_present = false;
-		for (var j = 0; j < traitement.nubs.length; j++) {
-			var nub = traitement.nubs[j];
-			var x = nub.x * canvas_glfx.width;
-			var y = nub.y * canvas_glfx.height;
-			traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
-			if(nub_present == false){
-				nub_present = true;
+		var display = true;
+		for(var j = 0; j < $.fn.imageEditor.noDisplayTraitements.length;j++){
+			if(traitement.id == $.fn.imageEditor.noDisplayTraitements[j]){
+				display = false;
+				break;
 			}
 		}
-	
-		if (traitement.reset){
-			traitement.reset();
+		if(display){			
+			$('<button />').attr({'data-toggle':"tab", href:'#'+traitement.id, class:'btn', type:'button'})
+			.text(traitement.label)
+			.on('click',{traitement:traitement},function(event){
+				var traitement = event.data.traitement;
+				setSelectedTraitement(traitement);
+			})
+			.appendTo('#traitement',settings.modal);
+
+			var div_traitement = $('<div />').attr({id:traitement.id, class:"row center-block tab-pane fade in table-responsive"}).appendTo('#traitement_parametre',settings.modal);
+			$('<p/>').text(traitement.label).attr({style:'text-align: center;'}).appendTo(div_traitement);
+
+			/////////
+			//  Sliders
+			///////// 
+			if(traitement.sliders.length){
+				var table = $('<table />').attr({class:'table'}).appendTo(div_traitement);
+			}
+			for(var j = 0; j < traitement.sliders.length; j++){
+				var slider = traitement.sliders[j];
+				var tr = $('<tr />').appendTo(table);
+				$('<th />').text(slider.label).appendTo(tr);
+				traitement[slider.id] = slider.value;
+				var th = $('<th />').appendTo(tr);
+				$('<input />').attr({
+					type:"range", 
+					id:slider.id,
+					min: slider.min,
+					max: slider.max,
+					value: slider.value,
+					step: slider.step
+				}).on('input',{slider:slider,traitement:traitement},function(event){
+					slider_change(event.data.slider, event.data.traitement, $(this).val())   
+				})
+				.on('change',{slider:slider,traitement:traitement},function(event){
+					slider_change(event.data.slider, event.data.traitement, $(this).val())
+				})
+				.appendTo(th);
+			}
+
+			//////////
+			//  Checkbox pour preview reel
+			//////////
+			$('<span/>').text(settings.lang.checkbox_preview)
+			.insertAfter(
+			$('<input />').attr({type:'checkbox'})
+			.on('change', {traitement:traitement}, function(event){
+				var traitement = event.data.traitement;
+				traitement.previewReel = $(this).is(':checked');
+				traitement.update();
+			}).appendTo(
+			$('<label/>').appendTo(
+			$('<div/>').attr({class: 'checkbox', id:'checkbox_preview'}).appendTo('#'+traitement.id, settings.modal))));
+
+
+			//////////
+			//  Valider/Annuler
+			//////////
+			$('<button />').attr({id:"valider", type:"button", value:"true", class:"btn"})
+			.text(settings.lang.validate_button)
+			.appendTo('#'+traitement.id,settings.modal)
+			.on('click',{traitement:traitement},function(event){
+				event.data.traitement.validate();
+			});
+			$('<button />').attr({id:"annuler", type:"button", value:"false", class:"btn"})
+			.text(settings.lang.cancel_button)
+			.appendTo('#'+traitement.id,settings.modal)
+			.on('click',function(){setSelectedTraitement(null)});
+		
+
+			/////////
+			//  Nubs (position sur l'image)
+			/////////
+			var nub_present = false;
+			for (var j = 0; j < traitement.nubs.length; j++) {
+				var nub = traitement.nubs[j];
+				var x = nub.x * canvas_glfx.width;
+				var y = nub.y * canvas_glfx.height;
+				traitement[nub.id] = { x: x, y: y, reel_x: x/ratio_image, reel_y: y/ratio_image};
+				if(nub_present == false){
+					nub_present = true;
+				}
+			}
+		
+			if (traitement.reset){
+				traitement.reset();
+			}
 		}
 	}
 
