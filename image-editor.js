@@ -396,7 +396,7 @@ function imageEditorEdit(options){
 			$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
 			$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
 			$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
-			$('#li_comparer',settings.modal).on('click',function(){cropValidation(false);affiche_base();}).text(settings.lang.compare);
+			$('#li_comparer',settings.modal).on('click',function(){$('#image_zone #image',settings.modal).cropper("destroy");$('.tab-content #crop',settings.modal).removeClass("active");affiche_base();}).text(settings.lang.compare);
 			$('#li_reset',settings.modal).on('click',function(){annuler();reset();}).text(settings.lang.reset);
 
 			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
@@ -504,10 +504,16 @@ function affiche_base(){
 	var canvas_base = document.createElement('canvas');
 	resizeCanvasImage(image_base, canvas_base, 550, 550);
 	image_affiche.src = canvas_base.toDataURL("image/png");	
-	setTimeout(function(){
-		image_affiche.src = canvas_traitement.toDataURL("image/png");
+	setTimeout(function(e){
+		if($('#li_traitement',settings.modal).parent().hasClass('active')){
+			image_affiche.src = canvas_glfx.toDataURL("image/png");
+		}else{
+			image_affiche.src = canvas_traitement.toDataURL("image/png");
+		}
 		$('#loading_circle',settings.modal).hide();
 	}, 1000);
+	$(canvas_base).remove();
+	delete canvas_base;
 }
 
 function filtreValidation(etat){//valider les traitements sur taille réel ou non
@@ -1027,6 +1033,7 @@ function applyPreview(traitement){
 			image_affiche.src = canvas_glfx.toDataURL("image/png");
 		}
 	}
+	//canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
 	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
 
@@ -1053,8 +1060,8 @@ function applyReal(traitement){
 }
 
 
-var traitement = null;
-var filtre = null;
+var traitements = null;
+var filtres = null;
 function initTraitements(){
 
 	filtres = [
