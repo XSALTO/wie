@@ -3,7 +3,7 @@
 //TODO Télécharger grande image chromium non fonctionnelle
 //TODO Ajouter une image par dessus (ex: image de l'auteur)
 //TODO Ajouter une fonction annuler dernière action (stockage image_modif, index actuel, annuler annulation)
-
+//Problème slider lensBlur -> angle sur firefox affiche une error/devient rouge lorsque les limite sont -Math.PI et Math.PI mais toujours fonctionnel
 
 var script_to_load = [
 	{url:"dependence/cropper.min.js", 	ok:false},
@@ -1331,7 +1331,7 @@ function initTraitements(){
 			new Traitement('lensBlur', function() {
 				this.addSlider('radius', 0, 50, 10, 1);
 				this.addSlider('brightness', -1, 1, 0.75, 0.01);
-				this.addSlider('angle', -Math.PI, Math.PI, 0, 0.01);
+				this.addSlider('angle', -3.14, 3.14, 0, 0.01);//-Math.PI, Math.PI, 0, 0.01);
 			}, function() {
 				///	PREVIEW
 				$('#loading_circle',settings.modal).show();
