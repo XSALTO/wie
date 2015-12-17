@@ -1,8 +1,8 @@
 (function ($){
-//TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
 //TODO Ajouter préfixe aux id (ex: ie-id)
 //TODO Télécharger grande image chromium non fonctionnelle
 //TODO Ajouter une image par dessus (ex: image de l'auteur)
+//TODO Ajouter une fonction annuler dernière action (stockage image_modif, index actuel, annuler annulation)
 
 
 var script_to_load = [
@@ -409,12 +409,13 @@ function imageEditorEdit(options){
 			ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
 			image_affiche.src = canvas_traitement.toDataURL("image/png");
 
-			$(canvas_glfx).remove();
-			canvas_glfx = fx.canvas();
+			/*$(canvas_glfx).remove();
+			canvas_glfx = fx.canvas();*/
 			canvas_glfx.height = canvas_traitement.height;
 			canvas_glfx.width = canvas_traitement.width;
 			if(texture){texture.destroy();}
 			texture = canvas_glfx.texture(canvas_traitement);
+			canvas_glfx.draw(texture).update();
 
 		};
 
@@ -888,6 +889,7 @@ function cropValidation(etat){
 }
 
 function annuler(){
+	resizeCanvasImage(image_modif,canvas_traitement,550,550);
 	cropValidation("false");
 	filtreValidation("false");
 	setSelectedTraitement(null);
