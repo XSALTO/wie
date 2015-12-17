@@ -1,9 +1,7 @@
 (function ($){
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
-//TODO Ajouter préfixe aux variable (ex: ie-varibale)
+//TODO Ajouter préfixe aux id (ex: ie-id)
 //TODO Télécharger grande image chromium non fonctionnelle
-//TODO Aperçu de traitement sur taille reel en utilisant checkbox ou autre/sur le clic du button
-//TODO Possibilité de ne pas afficher certains filtre/traitement
 
 
 var script_to_load = [
@@ -174,10 +172,6 @@ $.fn.imageEditor = function(options, action){
 					break;
 			}
 		}
-		delete options.modal;
-		delete options.path;
-		delete options.lang;
-		settings = $.extend({}, defaults, settings, options);
 	})
 }
 
