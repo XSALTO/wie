@@ -409,7 +409,7 @@ function imageEditorEdit(options){
 			ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550,550);
 			image_affiche.src = canvas_traitement.toDataURL("image/png");
 
-			canvas_glfx.remove();
+			$(canvas_glfx).remove();
 			canvas_glfx = fx.canvas();
 			canvas_glfx.height = canvas_traitement.height;
 			canvas_glfx.width = canvas_traitement.width;
