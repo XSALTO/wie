@@ -2,6 +2,7 @@
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
 //TODO Ajouter préfixe aux id (ex: ie-id)
 //TODO Télécharger grande image chromium non fonctionnelle
+//TODO Ajouter une image par dessus (ex: image de l'auteur)
 
 
 var script_to_load = [
@@ -97,6 +98,7 @@ var defaults = {
 	maxHeight: 4096,
 	maxWidth: 4096,
 	modal: null,
+	uploadData: {},
 	onUpload: function(serverMsg){},
 	onUploadError: function(){},
 	onHide: function(){},
@@ -435,8 +437,8 @@ function imageEditorEdit(options){
 
 		//button close
 		var quit_validate = $('<div/>').appendTo('.modal-footer',settings.modal).hide().append('<p id="close_msg">'+settings.lang.close_msg+'</p>');
-		$('<button/>').attr({class:'btn btn-success'}).text(settings.lang.cancel_button).appendTo(quit_validate);
-		$('<button/>').attr({class:'btn btn-danger'}).text(settings.lang.close_button).appendTo(quit_validate).on('click',function(){
+		$('<button/>').attr({class:'btn btn-success', type:'button'}).text(settings.lang.cancel_button).appendTo(quit_validate);
+		$('<button/>').attr({class:'btn btn-danger', type:'button'}).text(settings.lang.close_button).appendTo(quit_validate).on('click',function(){
 			if(uploading != false){
 				uploading.abort();
 			}
@@ -889,7 +891,6 @@ function annuler(){
 	cropValidation("false");
 	filtreValidation("false");
 	setSelectedTraitement(null);
-	//$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
 }
 
 function upload(){
@@ -917,7 +918,7 @@ function upload(){
 	uploading = $.ajax({
 		type: 'POST',
 		url: settings.urlServeur,
-		data: { "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName, "imageData" : url },
+		data: $.extend({},settings.uploadData,{ "formatImageSave" : settings.formatImageSave, 'imageName': settings.imageName, "imageData" : url, 'imageWidth': image_modif.width, 'imageHeight': image_modif.height }),
 		success: function(msg){
 			uploading = false;
 			$('#close_msg', settings.modal).text(settings.lang.close_msg);
