@@ -1,9 +1,7 @@
 (function ($){
 //TODO passage d'option supplementaire pour l'upload (transfert de data de l'utilisateur du plugin vers le serveur) (utilisation d'un $.extend.({}, {dataImage,....}, {userDataToTransfert}))
-//TODO Ajouter préfixe aux variable (ex: ie-varibale)
+//TODO Ajouter préfixe aux id (ex: ie-id)
 //TODO Télécharger grande image chromium non fonctionnelle
-//TODO Aperçu de traitement sur taille reel en utilisant checkbox ou autre/sur le clic du button
-//TODO Possibilité de ne pas afficher certains filtre/traitement
 
 
 var script_to_load = [
@@ -130,7 +128,11 @@ $.fn.imageEditor = function(options, action){
 		action = options;
 		options = {};
 	}
-	options.selector = this;
+	if(this !== window){
+		options.selector = this;
+	}else{
+		options.selector = null;
+	}
 
 	if(!action && options.urlImage){ //Si une image en option
 		action = 'show';
@@ -170,10 +172,6 @@ $.fn.imageEditor = function(options, action){
 					break;
 			}
 		}
-		delete options.modal;
-		delete options.path;
-		delete options.lang;
-		settings = $.extend({}, defaults, settings, options);
 	})
 }
 
@@ -195,9 +193,11 @@ function imageEditorInit(options){
 	}
 	settings = $.extend({},defaults,options);
 	var zone = null;
-	options.selector.each(function(){
-		zone = $(this);
-	});
+	if(options.selector){
+		options.selector.each(function(){
+			zone = $(this);
+		});
+	}
 	$.when(
 		//quand tout les scripts sont chargé
 		loadScripts()
@@ -396,7 +396,7 @@ function imageEditorEdit(options){
 			$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
 			$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
 			$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
-			$('#li_comparer',settings.modal).on('click',function(){cropValidation(false);affiche_base();}).text(settings.lang.compare);
+			$('#li_comparer',settings.modal).on('click',function(){$('#image_zone #image',settings.modal).cropper("destroy");$('.tab-content #crop',settings.modal).removeClass("active");affiche_base();}).text(settings.lang.compare);
 			$('#li_reset',settings.modal).on('click',function(){annuler();reset();}).text(settings.lang.reset);
 
 			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
@@ -424,9 +424,12 @@ function imageEditorEdit(options){
 		image_base.onerror = erreur;
 		image_affiche.onerror = erreur;
 
-		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
-		image_modif.src = settings.urlImage;
-				$('#crop #valider',settings.modal).text(settings.lang.validate_button);
+		$('#li_crop',settings.modal).text(settings.lang.crop);
+		$('#li_filtre',settings.modal).text(settings.lang.filters);
+		$('#li_traitement',settings.modal).text(settings.lang.image_process);
+		$('#li_comparer',settings.modal).text(settings.lang.compare);
+		$('#li_reset',settings.modal).text(settings.lang.reset);
+		$('#crop #valider',settings.modal).text(settings.lang.validate_button);
 		$('#crop #annuler',settings.modal).text(settings.lang.cancel_button);
 
 
@@ -477,6 +480,11 @@ function imageEditorEdit(options){
 		$('#loading_circle',settings.modal).show();
 		$('#percentUploaded', settings.modal).parent().hide();
 
+
+
+		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
+		image_modif.src = settings.urlImage;
+
 	});
 
 }
@@ -496,10 +504,16 @@ function affiche_base(){
 	var canvas_base = document.createElement('canvas');
 	resizeCanvasImage(image_base, canvas_base, 550, 550);
 	image_affiche.src = canvas_base.toDataURL("image/png");	
-	setTimeout(function(){
-		image_affiche.src = canvas_traitement.toDataURL("image/png");
+	setTimeout(function(e){
+		if($('#li_traitement',settings.modal).parent().hasClass('active')){
+			image_affiche.src = canvas_glfx.toDataURL("image/png");
+		}else{
+			image_affiche.src = canvas_traitement.toDataURL("image/png");
+		}
 		$('#loading_circle',settings.modal).hide();
 	}, 1000);
+	$(canvas_base).remove();
+	delete canvas_base;
 }
 
 function filtreValidation(etat){//valider les traitements sur taille réel ou non
@@ -1019,6 +1033,7 @@ function applyPreview(traitement){
 			image_affiche.src = canvas_glfx.toDataURL("image/png");
 		}
 	}
+	//canvas_traitement.getContext('2d').drawImage(canvas_glfx,0,0);
 	$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
 }
 
@@ -1045,8 +1060,8 @@ function applyReal(traitement){
 }
 
 
-var traitement = null;
-var filtre = null;
+var traitements = null;
+var filtres = null;
 function initTraitements(){
 
 	filtres = [
