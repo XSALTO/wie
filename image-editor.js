@@ -742,8 +742,8 @@ function reset(){
 
 function setSelectedTraitement(traitement){
 	modifNoSave = false;
-	$(window).off('resize', window, actualisePos);
-	$(window).off('orientationchange', window, actualisePos);
+	$(window).off('resize', actualisePos);
+	$(window).off('orientationchange', actualisePos);
 	$('#image_zone .nub',settings.modal).remove();
 	$('#traitement_parametre > div',settings.modal).removeClass('active');
 	image_affiche.src = canvas_traitement.toDataURL('image/png');
