@@ -172,8 +172,6 @@ $.fn.imageEditor = function(options, action){
 					}
 					delete settings.modal;
 					break;
-				case 'clear':
-					settings = $.extend({}, defaults, options);
 			}
 		}
 	})
