@@ -43,7 +43,7 @@
 		'sepia':			"Sépia",
 		'vignette':			"Vignette",
 		'zoomBlur':			"Zoom Flouté",
-		'triangleBlur':			"Flou",
+		'triangleBlur':			"Flou triangulaire",
 		'lensBlur':			"Flou de l'objectif",
 		'swirl':			"Tourbillon",
 		'bulgePinch':			"Renfler / Pincer",

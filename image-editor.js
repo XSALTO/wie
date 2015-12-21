@@ -746,6 +746,7 @@ function setSelectedTraitement(traitement){
 	$(window).off('orientationchange', actualisePos);
 	$('#image_zone .nub',settings.modal).remove();
 	$('#traitement_parametre > div',settings.modal).removeClass('active');
+	canvas_glfx.draw(texture).update();
 	image_affiche.src = canvas_traitement.toDataURL('image/png');
 	if(traitement == null){
 		$('#traitement_parametre',settings.modal).hide();
