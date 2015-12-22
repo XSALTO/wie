@@ -1,6 +1,7 @@
 # Web Image Editor
 ---
 WebImageEditor is a jQuery plugin to edit images using canvas.
+
 It works with [Bootstrap](http://getbootstrap.com/) ([License](https://github.com/twbs/bootstrap/blob/master/LICENSE)), [CamanJS](http://camanjs.com/) ([License](https://github.com/meltingice/CamanJS/blob/master/LICENSE)), [Glfx](http://evanw.github.io/glfx.js/) ([License](https://github.com/evanw/glfx.js/blob/master/LICENSE)) and [Cropper](http://fengyuanchen.github.io/cropper/) ([License](https://github.com/fengyuanchen/cropper/blob/master/LICENSE)).
 
 ## Installation
@@ -45,6 +46,7 @@ lang/
 ### Usage
 
 Just use `$( [selector] ).imageEditor( [options], [action] )` method.
+
 WebImageEditor's modal is created if there is no one already.
 
 #### Options
@@ -84,6 +86,7 @@ WebImageEditor's modal is created if there is no one already.
 #### Selector
 
 The selector is only useful at the first call of WebImageEditor, it permit to specify where the modal must be created.
+
 :information_source: By default it is created, at the end of `body`.
 
 ### Personalised
@@ -123,6 +126,7 @@ $().imageEditor.noDisplayTraitements = [
 ### Upload
 
 If you want to give the possibility to upload the image to your server, use the file `upload.php` as example.
+
 :information_source: You can add information to send your server using `GET requests` in the parameter `urlServeur`.
 
 | POST requests | Description |
