@@ -17,6 +17,7 @@ Or copy the three image-editor files and the two folders to your website.
 image-editor.js
 image-editor.css
 image-editor.html
+LICENSE
 dependence/
 ├──  caman.full.js
 ├──  cropper.min.css
