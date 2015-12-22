@@ -1,5 +1,5 @@
 (function ($){
-//TODO Ajouter préfixe aux id (ex: ie-id)
+//TODO Ajouter préfixe aux id (ex: wie-id)
 //TODO Télécharger grande image chromium non fonctionnelle
 //TODO Ajouter une image par dessus (ex: image de l'auteur)
 //TODO Ajouter une fonction annuler dernière action (stockage image_modif, index actuel, annuler annulation)
@@ -81,7 +81,7 @@ function getScript(url, async, done, fail){ //Principal utilité, charger en syn
 
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
-var image_affiche = new Image();//petite taille préview (pour traitement CamanJS)
+var image_affiche = new Image();//petite taille préview
 var canvas_traitement = document.createElement('canvas');//pour effectuer les traitements de filtre
 var filtre_utilise = null;
 var ratio_image;
