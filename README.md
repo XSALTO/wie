@@ -11,7 +11,7 @@ First clone image-editor using git :
 ```html
 git clone https://github.com/XSALTO/wie.git
 ```
-Or copy the three image-editor files and the two folders to your website.
+Or copy the three image-editor files, the two folders and the license to your website.
 
 ```html
 image-editor.js
