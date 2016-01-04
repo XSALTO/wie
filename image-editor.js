@@ -225,7 +225,7 @@ function imageEditorInit(options){
 			}
 		);
 
-		$(document).ready(function(event){
+		function createModal(){
 			try {
 				canvas_glfx = fx.canvas();
 			} catch (e) {
@@ -233,7 +233,7 @@ function imageEditorInit(options){
 				return;
 			}
 
-			if(zone==null){
+			if(zone===null){
 				zone = 'body';
 			}
 			var id = 'modalImageEditor';
@@ -262,14 +262,21 @@ function imageEditorInit(options){
 
 			//Affichage du modal par défaut
 			$('<div />').attr({class: 'modal-body'}).text(settings.lang.error_msg).appendTo(content);
-			var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content)
+			var footer = $('<div />').attr({class: 'modal-footer'}).appendTo(content);
 			$('<button />').attr({'data-dismiss': 'modal'}).text('close').appendTo(footer);
 			
 			settings.modal.on('hidden.bs.modal', settings.onHide);
 			settings.modal.on('shown.bs.modal', settings.onShow);
 
 			return deferred.resolve();
-		});
+                };
+                
+                if(document.readyState === 'complete'){
+                    createModal();
+                }else{
+                    $(document).ready(createModal);
+                    //document.addEventListener("DOMContentLoaded", 
+                }
 	});
 	return deferred;
 };
