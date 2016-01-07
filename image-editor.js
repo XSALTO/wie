@@ -79,6 +79,47 @@ function getScript(url, async, done, fail){ //Principal utilité, charger en syn
 	
 };
 
+
+Image.prototype.load = function( url, callback ) {
+    var thisImage = this,
+        xhr = new XMLHttpRequest();
+
+    thisImage.completedPercentage = 0;
+
+    xhr.open( 'GET', url , true );
+    xhr.responseType = 'arraybuffer';
+
+    xhr.onload = function() {
+        var h = xhr.getAllResponseHeaders(),
+            m = h.match( /^Content-Type\:\s*(.*?)$/mi ),
+            mimeType = m[ 1 ] || 'image/png';
+
+        var blob = new Blob( [ this.response ], { type: mimeType } );
+        thisImage.src = window.URL.createObjectURL( blob );
+    };
+
+    xhr.onprogress = function( e ) {
+        if ( e.lengthComputable )
+            thisImage.completedPercentage = ( e.loaded / e.total ) * 100;
+        $('#progressBar', settings.modal).css('width', thisImage.completedPercentage+'%').attr('aria-valuenow', thisImage.completedPercentage).text((thisImage.completedPercentage).toFixed(1)+" %");
+    };
+
+    xhr.onloadstart = function() {
+        // Display your progress bar here, starting at 0
+        thisImage.completedPercentage = 0;
+        $('#progressBar', settings.modal).css('width',thisImage.completedPercentage+'%').attr('aria-valuenow', thisImage.completedPercentage).text((thisImage.completedPercentage).toFixed(1)+" %");
+        $('#progressBar',settings.modal).parent().show();
+    };
+
+    xhr.onloadend = function() {
+        thisImage.completedPercentage = 100;
+        $('#progressBar',settings.modal).parent().hide();
+        if ( callback ) callback( this );
+    };
+
+    xhr.send();
+};
+
 var image_base = new Image();
 var image_modif = new Image();//taille réel (pour save/upload)
 var image_affiche = new Image();//petite taille préview (pour traitement CamanJS)
@@ -174,8 +215,8 @@ $.fn.imageEditor = function(options, action){
 					break;
 			}
 		}
-	})
-}
+	});
+};
 
 /////// Après la déclaration de imageEditor
 $.fn.imageEditor.personaliseLang = {};
@@ -481,12 +522,11 @@ function imageEditorEdit(options){
 			.prependTo('.modal-footer #button-action', settings.modal);
 		}
 		$('#loading_circle',settings.modal).show();
-		$('#percentUploaded', settings.modal).parent().hide();
+		$('#progressBar', settings.modal).parent().hide();
 
 
 
-		image_base.src = settings.urlImage; //"image/unnamed3.jpg";
-		image_modif.src = settings.urlImage;
+		image_base.load(settings.urlImage, function(){image_modif.src = image_base.src});
 
 	});
 
@@ -915,9 +955,10 @@ function upload(){
         url = url.replace(regex,"");
 	$(regex).remove();
 	delete regex;
-	$('#percentUploaded', settings.modal).css('width','0%').attr('aria-valuenow', 0).text("0 %");
+        
+	$('#progressBar', settings.modal).css('width','0%').attr('aria-valuenow', 0).text("0 %");
 	$('#close_msg', settings.modal).text(settings.lang.close_uploading_msg);
-	$('#percentUploaded',settings.modal).parent().show();
+	$('#progressBar',settings.modal).parent().show();
 	uploading = $.ajax({
 		type: 'POST',
 		url: settings.urlServeur,
@@ -927,7 +968,7 @@ function upload(){
 			$('#close_msg', settings.modal).text(settings.lang.close_msg);
 			$('#loading_circle',settings.modal).hide();
 			modifNoSave = false;
-			$('#percentUploaded',settings.modal).parent().hide();
+			$('#progressBar',settings.modal).parent().hide();
 			settings.onUpload(msg);
 		},
 		error: function(msg){
@@ -940,9 +981,9 @@ function upload(){
 			//Upload progress
 			xhr.upload.addEventListener("progress", function(evt){
 				if (evt.lengthComputable) {
-					var percentComplete = evt.loaded / evt.total;
+					var percentComplete = (evt.loaded / evt.total)*100;
 					//Do something with upload progress
-					$('#percentUploaded', settings.modal).css('width', percentComplete*100+'%').attr('aria-valuenow', percentComplete*100).text((percentComplete*100).toFixed(1)+" %");
+					$('#progressBar', settings.modal).css('width', percentComplete+'%').attr('aria-valuenow', percentComplete).text((percentComplete).toFixed(1)+" %");
 					//console.log("up : "+percentComplete);
 				}
 			}, false);
