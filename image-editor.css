@@ -23,6 +23,7 @@
 .modal-content {
 	-moz-user-select:none;
 	-webkit-user-select:none;
+        word-wrap: break-word;
 }
 
 .traitement-no-validate {

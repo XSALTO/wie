@@ -92,10 +92,26 @@ Image.prototype.load = function( url, callback ) {
     xhr.onload = function() {
         var h = xhr.getAllResponseHeaders(),
             m = h.match( /^Content-Type\:\s*(.*?)$/mi ),
-            mimeType = m[ 1 ] || 'image/png';
-
+            type = m[ 1 ] || 'image/png';
+/*
         var blob = new Blob( [ this.response ], { type: mimeType } );
-        thisImage.src = window.URL.createObjectURL( blob );
+        var canvas_convertion = document.createElement('canvas');
+        canvas_convertion.getContext('2d').drawImage(URL.createObjectURL( blob ),0,0);
+        thisImage.src = canvas_convertion.toDataUrl(mineType,1);*/
+        
+        var uInt8Array = new Uint8Array(this.response);
+        var i = uInt8Array.length;
+        var binaryString = new Array(i);
+        while (i--)
+        {
+          binaryString[i] = String.fromCharCode(uInt8Array[i]);
+        }
+        var data = binaryString.join('');
+
+        var base64 = window.btoa(data);
+        thisImage.src = "data:"+type+";base64,"+base64;
+        //thisImage.src = settings.urlImage;
+
     };
 
     xhr.onprogress = function( e ) {
@@ -115,6 +131,9 @@ Image.prototype.load = function( url, callback ) {
         thisImage.completedPercentage = 100;
         $('#progressBar',settings.modal).parent().hide();
         if ( callback ) callback( this );
+    };
+    xhr.onerror = function(){
+        thisImage.src = "";
     };
 
     xhr.send();
@@ -432,17 +451,21 @@ function imageEditorEdit(options){
 			$('#loading_circle',settings.modal).hide();
 			reset();
 			image_affiche.onload = null;
+                        
+                        //définir la taille maximal (pour canvas_glfx)
 			resizeCanvasImage(image_modif, canvas_traitement, settings.maxWidth, settings.maxHeight);
 			image_modif.src = canvas_traitement.toDataURL('image/'+settings.formatImageSave,1);
+                        
 			$(canvas_traitement).remove();
 			canvas_traitement = document.createElement('canvas');
 			$('#li_crop',settings.modal).on('click',function(){annuler();crop();}).text(settings.lang.crop);
-			$('#li_filtre',settings.modal).on('click',function(){annuler()}).text(settings.lang.filters);
-			$('#li_traitement',settings.modal).on('click',function(){annuler()}).text(settings.lang.image_process);
+			$('#li_filtre',settings.modal).on('click',function(){annuler();}).text(settings.lang.filters);
+			$('#li_traitement',settings.modal).on('click',function(){annuler();}).text(settings.lang.image_process);
 			$('#li_comparer',settings.modal).on('click',function(){$('#image_zone #image',settings.modal).cropper("destroy");$('.tab-content #crop',settings.modal).removeClass("active");affiche_base();}).text(settings.lang.compare);
 			$('#li_reset',settings.modal).on('click',function(){annuler();reset();}).text(settings.lang.reset);
 
-			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value)});
+			$('#crop button',settings.modal).on('click',function(){cropValidation(this.value);});
+                        //image_modif.onload();
 		};
 
 		image_modif.onload = function(){
@@ -464,7 +487,7 @@ function imageEditorEdit(options){
 			$('#image_zone',settings.modal).empty().html('<p class="text-center">'+settings.lang.error_loading_image_msg+'('+settings.urlImage+').</p>');
 			$('#loading_circle',settings.modal).hide();
 			settings.onLoadImageError();
-		}
+		};
 		image_base.onerror = erreur;
 		image_affiche.onerror = erreur;
 
@@ -500,7 +523,7 @@ function imageEditorEdit(options){
 			}else{
 				settings.modal.modal('hide');
 			}
-		})
+		});
 
 		$('button', quit_validate).on('click',{quit_validate:quit_validate},function(event){
 			$(event.data.quit_validate).hide();
@@ -525,15 +548,17 @@ function imageEditorEdit(options){
 		$('#progressBar', settings.modal).parent().hide();
 
 
-
-		image_base.load(settings.urlImage, function(){image_modif.src = image_base.src});
+                
+                image_modif.load(settings.urlImage);
+		image_base.src = settings.urlImage;
+		
 
 	});
 
 }
 
 function download() {
-	var a = document.createElement('a')
+	var a = document.createElement('a');
 	a.download = settings.imageName +'.'+settings.formatImageSave;
 	a.href = image_modif.src;
 	document.body.appendChild(a);
@@ -541,7 +566,6 @@ function download() {
 	a.remove();
 }
 
-	$('#loading_circle',settings.modal).show();
 function affiche_base(){
 	$('#loading_circle',settings.modal).show();
 	var canvas_base = document.createElement('canvas');
@@ -641,7 +665,9 @@ function reset(){
 	canvas_glfx = fx.canvas();
 	canvas_glfx.height = image_affiche.height;
 	canvas_glfx.width = image_affiche.width;
-	image_modif.src = image_base.src;//image_affiche change à onload de image_modif
+	if(image_affiche.onload == null){//image_affiche change à onload de image_modif
+            image_modif.src = image_base.src;
+        }
 	filtre_utilise = null;
 
 	/////////
@@ -1094,6 +1120,11 @@ function applyReal(traitement){
 	} else {
 		image_modif.src = canvas_glfx.toDataURL("image/"+settings.formatImageSave,1);
 	}
+        //le canvas est cassé donc on le reinit
+        $(canvas_glfx).remove();
+        delete canvas_glfx;
+        canvas_glfx = fx.canvas();
+        
 	modifNoSave = true;
 	$('#traitement_parametre',settings.modal).hide();
 	$('#traitement',settings.modal).show();
