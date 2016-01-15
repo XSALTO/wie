@@ -26,6 +26,8 @@
 		error_glfx_load_msg:		"glfx.js has not loaded",
 		error_glfx_support_msg:		"Sorry, this browser does not support WebGL",
 		checkbox_preview:		"Preview on the real size",
+		crop_format:                    "Format",
+		crop_free:                      "Free",
 		
 
 		////////

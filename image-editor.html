@@ -1,45 +1,55 @@
-	<div class="modal-dialog modal-lg" role="document">
-	    <div class="modal-content">
-	      <div class="modal-header">
-	        <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
-	        <h4 class="modal-title">Image Editor</h4>
-	      </div>
+<div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+        <div class="modal-header">
+            <!--<button type="button" class="close" data-dismiss="modal">&times;</button>-->
+            <h4 class="modal-title">Image Editor</h4>
+            <div id="imageInfo" style="display: none">
+                <span id="widthInfo"></span> x <span id="heightInfo"></span>
+            </div>
+        </div>
 
-	      <div class="modal-body">
-		<div id="image_zone" class="row center-block"></div>
-		<ul id="famille" class="center-block nav nav-pills nav-justified">	
-			<li><a id='li_crop' data-toggle="tab" href="#crop">Recadrer</a></li>
-			<li><a id='li_filtre' data-toggle="tab" href="#filtre_zone">Filtre</a></li>
-		<!--	<li><a onclick="annuler()" href="#">Amélioration auto</a></li>-->
-			<li><a id='li_traitement' data-toggle="tab" href="#traitement_zone">Traitement image</a></li>
-			<li><a id='li_comparer' href="javascript:void(0)">Comparer</a></li>
-			<li><a id='li_reset' href="javascript:void(0)">Tout annuler</a></li>
-		</ul>
-		<hr/>
-		<div class="tab-content">
-			<div id="crop" class="row center-block tab-pane fade in btn-group">
-				<button id="valider" type="button" value="true" class="btn">Valider</button>
-				<button id="annuler" type="button" value="false" class="btn">Annuler</button>
-			</div>
-			<div id="filtre_zone" class="row center-block tab-pane fade in">
-				<div id="filtre"></div>
-				<div id="validation" class="row center-block btn-group"></div>
-			</div>
-			<div id="traitement_zone" class="row center-block tab-pane fade in">
-			</div>
-		</div>
-	      </div>
+        <div class="modal-body">
+            <div id="image_zone" class="row center-block"></div>
+            <ul id="famille" class="center-block nav nav-pills nav-justified">	
+                <li><a id='li_crop' data-toggle="tab" href="#crop">Recadrer</a></li>
+                <li><a id='li_filtre' data-toggle="tab" href="#filtre_zone">Filtre</a></li>
+                <!--	<li><a onclick="annuler()" href="#">Amélioration auto</a></li>-->
+                <li><a id='li_traitement' data-toggle="tab" href="#traitement_zone">Traitement image</a></li>
+                <li><a id='li_comparer' href="javascript:void(0)">Comparer</a></li>
+                <li><a id='li_reset' href="javascript:void(0)">Tout annuler</a></li>
+            </ul>
+            <hr/>
+            <div class="tab-content">
+                <div id="crop" class="row center-block tab-pane fade in btn-group">
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox" id="crop-free-checkbox"><span id="crop-free-text">Libre</span>
+                        </label>
+                    </div>
+                    <input type="range" id="crop-format-slider"/>
+                    <div><span id="cropper-format-text">Format</span> : <span id="crop-format-selected"></span></div>
+                    <button id="valider" type="button" value="true" class="btn">Valider</button>
+                    <button id="annuler" type="button" value="false" class="btn">Annuler</button>
+                </div>
+                <div id="filtre_zone" class="row center-block tab-pane fade in">
+                    <div id="filtre"></div>
+                    <div id="validation" class="row center-block btn-group"></div>
+                </div>
+                <div id="traitement_zone" class="row center-block tab-pane fade in">
+                </div>
+            </div>
+        </div>
 
-	      <div class="modal-footer">
-		<div id='information'>
-		  <div class="progress progress-striped active">
-		    <div id="percentUploaded" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-		    </div>
-		  </div>
-		  <img id='loading_circle'></img>
-		</div>
-		<div id='button-action'>
-	     	</div>
-	     </div>
-	    </div>
-	</div>
+        <div class="modal-footer">
+            <div id='information'>
+                <div class="progress progress-striped active">
+                    <div id="progressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+                <img id='loading_circle'/>
+            </div>
+            <div id='button-action'>
+            </div>
+        </div>
+    </div>
+</div>

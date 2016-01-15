@@ -26,7 +26,9 @@
 		error_glfx_load_msg:		"glfx.js n'a pas chargé",
 		error_glfx_support_msg:		"Désolé, ce navigateur ne supporte pas WebGL",
 		checkbox_preview:		"Prévisualiser sur la taille reel",
-		
+                crop_format:                    "Format",
+		crop_free:                      "Libre",
+
 
 		////////
 		// Traitements
