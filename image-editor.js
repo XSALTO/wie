@@ -1202,6 +1202,9 @@
 
     function crop() {
         // Cropper(http://fengyuanchen.github.io/cropper/)
+        if(!($("#crop-free-checkbox", settings.modal).is(":checked"))){
+            $("#crop-free-checkbox", settings.modal).click();
+        }
         $('#loading_circle', settings.modal).show();
         $('#image_zone #image', settings.modal).cropper();
         $('#loading_circle', settings.modal).hide();
