@@ -11,7 +11,7 @@
             ok: false
         },
         {
-            url: "dependence/caman.full.js",
+            url: "dependence/caman.full.min.js",
             ok: false
         },
         {
@@ -220,11 +220,11 @@
     };
 
     $.fn.imageEditor = function (options, action) {
-        if (options == undefined) {
+        if (options === undefined) {
             options = {};
         }
 
-        if (!action && typeof (options) == 'string') {
+        if (!action && typeof (options) === 'string') {
             action = options;
             options = {};
         }
@@ -238,17 +238,17 @@
             //Si une image en option
             action = 'show';
         }
-        if (!settings.modal && action == 'remove') {
+        if (!settings.modal && action === 'remove') {
             return;
         }
 
         $.when(
-                {
-                    action: action,
-                    options: options
-                },
-                imageEditorInit(options)
-                ).done(function (event) {
+            {
+                action: action,
+                options: options
+            },
+            imageEditorInit(options)
+        ).done(function (event) {
             var action = event.action;
             var options = event.options;
 
@@ -325,7 +325,9 @@
                 initTraitements();
             },
                     function (jqxhr, setting, exception) {
-                        settings.onLoadLangError(exception);
+                        if(settings.lang instanceof String){
+                            settings.onLoadLangError(exception);
+                        }
                         return;
                     }
             );
@@ -334,8 +336,8 @@
                 try {
                     canvas_glfx = fx.canvas();
                 } catch (e) {
+                    canvas_glfx = undefined;
                     settings.onGlfxNoSupport();
-                    return;
                 }
 
                 if (zone == null) {
@@ -410,6 +412,16 @@
         if (ratio > 1) {
             ratio = 1;
         }
+
+        // pour faire simple ///////////////////
+        //
+        canvas.height = imgHeight * ratio;
+        canvas.width = imgWidth * ratio;
+
+        canvas.getContext('2d').drawImage(img, 0, 0, img.width, img.height, 0, 0, canvas.width, canvas.height);
+        return ratio;
+        /////////////////////////////////////////
+
 
         var canvasContext = canvas.getContext("2d");
         var canvasCopy = document.createElement("canvas");
@@ -511,6 +523,7 @@
                 $('#image_zone', settings.modal).empty().append(image_affiche);
                 $('#loading_circle', settings.modal).hide();
                 reset();
+
                 image_affiche.onload = null;
 
                 //définir la taille maximal (pour canvas_glfx)
@@ -548,18 +561,27 @@
 
             image_modif.onload = function () {
 
+                if(image_modif.height > 4096 || image_modif.width > 4096){
+                    var canvas = document.createElement('canvas');
+                    resizeCanvasImage(image_modif, canvas, 4096, 4096);
+                    image_modif.src = canvas.toDataURL("image/png");
+                    return;
+                }
+
                 ratio_image = resizeCanvasImage(image_modif, canvas_traitement, 550, 550);
                 image_affiche.src = canvas_traitement.toDataURL("image/png");
 
-                /*$(canvas_glfx).remove();
-                 canvas_glfx = fx.canvas();*/
-                canvas_glfx.height = canvas_traitement.height;
-                canvas_glfx.width = canvas_traitement.width;
-                if (texture) {
-                    texture.destroy();
+                if(canvas_glfx){
+                    /*$(canvas_glfx).remove();
+                     canvas_glfx = fx.canvas();*/
+                    canvas_glfx.height = canvas_traitement.height;
+                    canvas_glfx.width = canvas_traitement.width;
+                    if (texture) {
+                        texture.destroy();
+                    }
+                    texture = canvas_glfx.texture(canvas_traitement);
+                    canvas_glfx.draw(texture).update();
                 }
-                texture = canvas_glfx.texture(canvas_traitement);
-                canvas_glfx.draw(texture).update();
 
                 $("#heightInfo", settings.modal).text(image_modif.height);
                 $("#widthInfo", settings.modal).text(image_modif.width);
@@ -609,6 +631,7 @@
                     .on('click', {
                         quit_validate: quit_validate
                     }, function (event) {
+                        annuler();
                         if (settings.urlServeur && (uploading != false || modifNoSave == true)) {
                             $(event.data.quit_validate).show();
                             $(this).parent().hide();
@@ -647,7 +670,12 @@
             }
             $('#loading_circle', settings.modal).show();
             $('#progressBar', settings.modal).parent().hide();
-            
+
+
+
+            ////////
+            //cropper
+            ////////
             var crop_format = [
                 {"label":"16:9", "value":16/9},//0
                 {"label":"4:3", "value":4/3},//1
@@ -804,16 +832,19 @@
         $(canvas_traitement).remove();
         delete canvas_traitement;
         canvas_traitement = document.createElement('canvas');
-        canvas_traitement.height = image_affiche.height;
-        canvas_traitement.width = image_affiche.width;
-        $(canvas_glfx).remove();
-        delete canvas_glfx;
-        canvas_glfx = fx.canvas();
-        canvas_glfx.height = image_affiche.height;
-        canvas_glfx.width = image_affiche.width;
-        if (image_affiche.onload == null) {
+        canvas_traitement.height = image_affiche.naturalHeight;
+        canvas_traitement.width = image_affiche.naturalWidth;
+        if(canvas_glfx){
+            $(canvas_glfx).remove();
+            delete canvas_glfx;
+            canvas_glfx = fx.canvas();
+            canvas_glfx.height = image_affiche.naturalHeight;
+            canvas_glfx.width = image_affiche.naturalWidth;
+        }
+        if (image_affiche.onload === null) {
             //image_affiche change à onload de image_modif
-            image_modif.src = image_base.src;
+            resizeCanvasImage(image_base, canvas_traitement, settings.maxWidth, settings.maxHeight);
+            image_modif.src = canvas_traitement.toDataURL('image/' + settings.formatImageSave, 1);
         }
         filtre_utilise = null;
 
@@ -869,30 +900,32 @@
         ///////////
         //  Traitements
         /////////
-        $('<div />').attr({
-            id: "traitement",
-            class: "center-block"
-        }).appendTo('#traitement_zone', settings.modal);
-        $('<div />').attr({
-            id: "traitement_parametre",
-            class: "tab-content"
-        }).appendTo('#traitement_zone', settings.modal);
-        for (var i = 0; i < traitements.length; i++) {
-            var traitement = traitements[i];
-            var display = true;
-            for (var j = 0; j < $.fn.imageEditor.noDisplayTraitements.length; j++) {
-                if (traitement.id == $.fn.imageEditor.noDisplayTraitements[j]) {
-                    display = false;
-                    break;
+
+        if(canvas_glfx){
+            $('<div />').attr({
+                id: "traitement",
+                class: "center-block"
+            }).appendTo('#traitement_zone', settings.modal);
+            $('<div />').attr({
+                id: "traitement_parametre",
+                class: "tab-content"
+            }).appendTo('#traitement_zone', settings.modal);
+            for (var i = 0; i < traitements.length; i++) {
+                var traitement = traitements[i];
+                var display = true;
+                for (var j = 0; j < $.fn.imageEditor.noDisplayTraitements.length; j++) {
+                    if (traitement.id == $.fn.imageEditor.noDisplayTraitements[j]) {
+                        display = false;
+                        break;
+                    }
                 }
-            }
-            if (display) {
-                $('<button />').attr({
-                    'data-toggle': "tab",
-                    href: '#' + traitement.id,
-                    class: 'btn',
-                    type: 'button'
-                })
+                if (display) {
+                    $('<button />').attr({
+                        'data-toggle': "tab",
+                        href: '#' + traitement.id,
+                        class: 'btn',
+                        type: 'button'
+                    })
                         .text(traitement.label)
                         .on('click', {
                             traitement: traitement
@@ -902,41 +935,41 @@
                         })
                         .appendTo('#traitement', settings.modal);
 
-                var div_traitement = $('<div />').attr({
-                    id: traitement.id,
-                    class: "row center-block tab-pane fade in table-responsive"
-                }).appendTo('#traitement_parametre', settings.modal);
-                $('<p/>').text(traitement.label).attr({
-                    style: 'text-align: center;'
-                }).appendTo(div_traitement);
-
-                /////////
-                //  Sliders
-                ///////// 
-                if (traitement.sliders.length) {
-                    var table = $('<table />').attr({
-                        class: 'table'
+                    var div_traitement = $('<div />').attr({
+                        id: traitement.id,
+                        class: "row center-block tab-pane fade in table-responsive"
+                    }).appendTo('#traitement_parametre', settings.modal);
+                    $('<p/>').text(traitement.label).attr({
+                        style: 'text-align: center;'
                     }).appendTo(div_traitement);
-                }
-                for (var j = 0; j < traitement.sliders.length; j++) {
-                    var slider = traitement.sliders[j];
-                    var tr = $('<tr />').appendTo(table);
-                    $('<th />').text(slider.label).appendTo(tr);
-                    traitement[slider.id] = slider.value;
-                    var th = $('<th />').appendTo(tr);
-                    $('<input />').attr({
-                        type: "range",
-                        id: slider.id,
-                        min: slider.min,
-                        max: slider.max,
-                        value: slider.value,
-                        step: slider.step
-                    }).on('input', {
-                        slider: slider,
-                        traitement: traitement
-                    }, function (event) {
-                        slider_change(event.data.slider, event.data.traitement, $(this).val());
-                    })
+
+                    /////////
+                    //  Sliders
+                    /////////
+                    if (traitement.sliders.length) {
+                        var table = $('<table />').attr({
+                            class: 'table'
+                        }).appendTo(div_traitement);
+                    }
+                    for (var j = 0; j < traitement.sliders.length; j++) {
+                        var slider = traitement.sliders[j];
+                        var tr = $('<tr />').appendTo(table);
+                        $('<th />').text(slider.label).appendTo(tr);
+                        traitement[slider.id] = slider.value;
+                        var th = $('<th />').appendTo(tr);
+                        $('<input />').attr({
+                            type: "range",
+                            id: slider.id,
+                            min: slider.min,
+                            max: slider.max,
+                            value: slider.value,
+                            step: slider.step
+                        }).on('input', {
+                            slider: slider,
+                            traitement: traitement
+                        }, function (event) {
+                            slider_change(event.data.slider, event.data.traitement, $(this).val());
+                        })
                             .on('change', {
                                 slider: slider,
                                 traitement: traitement
@@ -944,42 +977,42 @@
                                 slider_change(event.data.slider, event.data.traitement, $(this).val());
                             })
                             .appendTo(th);
-                }
+                    }
 
-                //////////
-                //  Checkbox pour preview reel
-                //////////
-                $('<span/>').text(settings.lang.checkbox_preview)
-                .insertAfter(
-                    $('<input />').attr({
-                        type: 'checkbox'
+                    //////////
+                    //  Checkbox pour preview reel
+                    //////////
+                    $('<span/>').text(settings.lang.checkbox_preview)
+                        .insertAfter(
+                            $('<input />').attr({
+                                type: 'checkbox'
+                            })
+                            .on('change', {
+                                traitement: traitement
+                            }, function (event) {
+                                var traitement = event.data.traitement;
+                                traitement.previewReel = $(this).is(':checked');
+                                traitement.update();
+                            }).appendTo(
+                                $('<label/>').appendTo(
+                                    $('<div/>').attr({
+                                        class: 'checkbox',
+                                        id: 'checkbox_preview'
+                                    }).appendTo('#' + traitement.id, settings.modal)
+                                )
+                            )
+                        );
+
+
+                    //////////
+                    //  Valider/Annuler
+                    //////////
+                    $('<button />').attr({
+                        id: "valider",
+                        type: "button",
+                        value: "true",
+                        class: "btn"
                     })
-                    .on('change', {
-                            traitement: traitement
-                        }, function (event) {
-                            var traitement = event.data.traitement;
-                            traitement.previewReel = $(this).is(':checked');
-                            traitement.update();
-                    }).appendTo(
-                        $('<label/>').appendTo(
-                            $('<div/>').attr({
-                                class: 'checkbox',
-                                id: 'checkbox_preview'
-                            }).appendTo('#' + traitement.id, settings.modal)
-                        )
-                    )
-                );
-
-
-                //////////
-                //  Valider/Annuler
-                //////////
-                $('<button />').attr({
-                    id: "valider",
-                    type: "button",
-                    value: "true",
-                    class: "btn"
-                })
                         .text(settings.lang.validate_button)
                         .appendTo('#' + traitement.id, settings.modal)
                         .on('click', {
@@ -987,12 +1020,12 @@
                         }, function (event) {
                             event.data.traitement.validate();
                         });
-                $('<button />').attr({
-                    id: "annuler",
-                    type: "button",
-                    value: "false",
-                    class: "btn"
-                })
+                    $('<button />').attr({
+                        id: "annuler",
+                        type: "button",
+                        value: "false",
+                        class: "btn"
+                    })
                         .text(settings.lang.cancel_button)
                         .appendTo('#' + traitement.id, settings.modal)
                         .on('click', function () {
@@ -1000,48 +1033,69 @@
                         });
 
 
-                /////////
-                //  Nubs (position sur l'image)
-                /////////
-                var nub_present = false;
-                for (var j = 0; j < traitement.nubs.length; j++) {
-                    var nub = traitement.nubs[j];
-                    var x = nub.x * canvas_glfx.width;
-                    var y = nub.y * canvas_glfx.height;
-                    traitement[nub.id] = {
-                        x: x,
-                        y: y,
-                        reel_x: x / ratio_image,
-                        reel_y: y / ratio_image
-                    };
-                    if (nub_present == false) {
-                        nub_present = true;
+                    /////////
+                    //  Nubs (position sur l'image)
+                    /////////
+                    var nub_present = false;
+                    for (var j = 0; j < traitement.nubs.length; j++) {
+                        var nub = traitement.nubs[j];
+                        var x = nub.x * canvas_glfx.width;
+                        var y = nub.y * canvas_glfx.height;
+                        traitement[nub.id] = {
+                            x: x,
+                            y: y,
+                            reel_x: x / ratio_image,
+                            reel_y: y / ratio_image
+                        };
+                        if (nub_present == false) {
+                            nub_present = true;
+                        }
+                    }
+
+                    if (traitement.reset) {
+                        traitement.reset();
                     }
                 }
-
-                if (traitement.reset) {
-                    traitement.reset();
-                }
             }
+        }else{
+            $('<div />').text(settings.lang.error_glfx_support_msg).css({
+                "text-align": "center",
+                "color": "red"
+            }).appendTo('#traitement_zone', settings.modal);
         }
 
         $('#loading_circle', settings.modal).hide();
     }
 
     function setSelectedTraitement(traitement) {
-        modifNoSave = false;
+        $('#image_zone .nub', settings.modal).remove();
         $(window).off('resize', actualisePos);
         $(window).off('orientationchange', actualisePos);
-        $('#image_zone .nub', settings.modal).remove();
+        $('body').off('touchend mouseup'); // pour les node
+        if(!canvas_glfx){return;}
         $('#traitement_parametre > div', settings.modal).removeClass('active');
-        canvas_glfx.draw(texture).update();
-        image_affiche.src = canvas_traitement.toDataURL('image/png');
         if (traitement == null) {
+            image_affiche.src = canvas_traitement.toDataURL('image/png');
             $('#traitement_parametre', settings.modal).hide();
             $('#traitement', settings.modal).show();
             $(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
             return;
         }
+
+
+        $(canvas_glfx).remove();
+        delete canvas_glfx;
+        canvas_glfx = fx.canvas();
+        canvas_glfx.height = canvas_traitement.height;
+        canvas_glfx.width = canvas_traitement.width;;
+        if (texture) {
+            texture.destroy();
+        }
+        texture = canvas_glfx.texture(canvas_traitement);
+        canvas_glfx.draw(texture).update();
+
+
+        image_affiche.src = canvas_traitement.toDataURL('image/png');
         $('#' + traitement.id, settings.modal).addClass('active');
         $('#traitement_parametre', settings.modal).show();
         $('#traitement', settings.modal).hide();
@@ -1114,6 +1168,7 @@
                 var x = (event.pageX - image_position.screen.left) * (image_affiche.naturalWidth / $('#image', settings.modal).width());
                 var y = (event.pageY - image_position.screen.top) * (image_affiche.naturalHeight / $('#image', settings.modal).height());
 
+                // ne pas sortir des bords  de l'image ?
                 if (x < 0)
                     x = 0;
                 if (x > image_affiche.naturalWidth)
@@ -1423,6 +1478,8 @@
         $(canvas_glfx).remove();
         delete canvas_glfx;
         canvas_glfx = fx.canvas();
+        canvas_glfx.height = image_affiche.naturalHeight;
+        canvas_glfx.width = image_affiche.naturalWidth;;
 
         modifNoSave = true;
         $('#traitement_parametre', settings.modal).hide();
@@ -1531,7 +1588,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).brightnessContrast(this.brightness, this.contrast).update();
                 applyReal(this);
@@ -1556,7 +1613,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).hueSaturation(this.hue, this.saturation).update();
                 applyReal(this);
@@ -1580,7 +1637,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).vibrance(this.amount).update();
                 applyReal(this);
@@ -1604,7 +1661,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).denoise(this.exponent).update();
                 applyReal(this);
@@ -1629,7 +1686,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).unsharpMask(this.radius, this.strength).update();
                 applyReal(this);
@@ -1653,7 +1710,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).noise(this.amount).update();
                 applyReal(this);
@@ -1677,7 +1734,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).sepia(this.amount).update();
                 applyReal(this);
@@ -1702,7 +1759,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).vignette(this.size, this.amount).update();
                 applyReal(this);
@@ -1727,7 +1784,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).zoomBlur(this.center.reel_x, this.center.reel_y, this.strength).update();
                 applyReal(this);
@@ -1754,7 +1811,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).tiltShift(this.start.reel_x, this.start.reel_y, this.end.reel_x, this.end.reel_y, this.blurRadius, this.gradientRadius).update();
                 applyReal(this);
@@ -1778,7 +1835,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).triangleBlur(this.radius).update();
                 applyReal(this);
@@ -1805,7 +1862,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).lensBlur(this.radius, this.brightness, this.angle).update();
                 applyReal(this);
@@ -1831,7 +1888,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).swirl(this.center.reel_x, this.center.reel_y, this.radius / ratio_image, this.angle).update();
                 applyReal(this);
@@ -1857,7 +1914,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).bulgePinch(this.center.reel_x, this.center.reel_y, this.radius, this.strength).update();
                 applyReal(this);
@@ -1882,14 +1939,14 @@
                     canvas_glfx.draw(canvas_glfx.texture(image_modif)).perspective(this.before, this.after).update();
                 } else {
                     this.after = [this.a.x, this.a.y, this.b.x, this.b.y, this.c.x, this.c.y, this.d.x, this.d.y];
-                    this.before = [0, 0, image_affiche.width, 0, 0, image_affiche.height, image_affiche.width, image_affiche.height];
+                    this.before = [0, 0, image_affiche.naturalWidth, 0, 0, image_affiche.naturalHeight, image_affiche.naturalWidth, image_affiche.naturalHeight];
                     canvas_glfx.draw(texture).perspective(this.before, this.after).update();
                 }
                 applyPreview(this);
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 this.before = [0, 0, image_modif.width, 0, 0, image_modif.height, image_modif.width, image_modif.height];
                 this.after = [this.a.reel_x, this.a.reel_y, this.b.reel_x, this.b.reel_y, this.c.reel_x, this.c.reel_y, this.d.reel_x, this.d.reel_y];
@@ -1915,7 +1972,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).ink(this.strength).update();
                 applyReal(this);
@@ -1939,7 +1996,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).edgeWork(this.radius).update();
                 applyReal(this);
@@ -1964,7 +2021,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                ///	REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).hexagonalPixelate(this.center.reel_x, this.center.reel_y, this.scale).update();
                 applyReal(this);
@@ -1990,7 +2047,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                /// REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).dotScreen(this.center.reel_x, this.center.reel_y, this.angle, this.size).update();
                 applyReal(this);
@@ -2005,7 +2062,7 @@
                 this.addSlider('size', 3, 20, 4, 0.01);
             }
             , function () {
-                ///	PREVIEW
+                /// PREVIEW
                 $('#loading_circle', settings.modal).show();
                 if (this.previewReel) {
                     canvas_glfx.draw(canvas_glfx.texture(image_modif)).colorHalftone(this.center.reel_x, this.center.reel_y, this.angle, this.size).update();
@@ -2016,7 +2073,7 @@
                 $('#loading_circle', settings.modal).hide();
             }
             , function () {
-                ///	REAL	
+                /// REAL
                 $('#loading_circle', settings.modal).show();
                 canvas_glfx.draw(canvas_glfx.texture(image_modif)).colorHalftone(this.center.reel_x, this.center.reel_y, this.angle, this.size).update();
                 applyReal(this);
