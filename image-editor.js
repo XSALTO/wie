@@ -1,6 +1,4 @@
-/* global fx */
-
-(function ($) {
+﻿(function ($) {
     //TODO Ajouter préfixe aux id (ex: ie-id)
     //TODO Télécharger grande image chromium non fonctionnelle
     //TODO Ajouter une image par dessus (ex: image de l'auteur)
@@ -81,7 +79,7 @@
     }
 
     function getScript(url, async, done, fail) {
-        //Principal utilité, charger en sync 
+        //Principal utilité, charger en sync
         $.ajax({
             url: url,
             type: "GET",
@@ -95,14 +93,14 @@
 
 
     Image.prototype.load = function (url, callback) {
-        var thisImage = this
-                ,
-                xhr = new XMLHttpRequest();
+        var thisImage = this,
+            xhr = new XMLHttpRequest();
 
         thisImage.completedPercentage = 0;
 
         xhr.open('GET', url, true);
         xhr.responseType = 'arraybuffer';
+        xhr.responseType = 'blob';
 
         xhr.onload = function () {
             var h = xhr.getAllResponseHeaders()
@@ -110,24 +108,31 @@
                     m = h.match(/^Content-Type\:\s*(.*?)$/mi)
                     ,
                     type = m[1] || 'image/png';
-            /*
-             var blob = new Blob( [ this.response ], { type: mimeType } );
-             var canvas_convertion = document.createElement('canvas');
-             canvas_convertion.getContext('2d').drawImage(URL.createObjectURL( blob ),0,0);
-             thisImage.src = canvas_convertion.toDataUrl(mineType,1);*/
 
-            var uInt8Array = new Uint8Array(this.response);
-            var i = uInt8Array.length;
-            var binaryString = new Array(i);
-            while (i--)
-            {
-                binaryString[i] = String.fromCharCode(uInt8Array[i]);
+            //var uInt8Array = new Uint8Array(this.response);
+            //var i = uInt8Array.length;
+            //var binaryString = new Array(i);
+            //while (i--)
+            //{
+                //binaryString[i] = String.fromCharCode(uInt8Array[i]);
+            //}
+            //var data = binaryString.join('');
+
+            //var base64 = window.btoa(data);
+            //thisImage.src = "data:" + type + ";base64," + base64;
+
+            var blob = this.response;
+            var imageBlob = new Image;
+            imageBlob.onload = function(){
+                var canvas = document.createElement('CANVAS');
+                canvas.height = this.naturalHeight;
+                canvas.width = this.naturalWidth;
+                canvas.getContext('2d').drawImage(imageBlob, 0, 0, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
+                thisImage.src = canvas.toDataURL('image/png',1);
+                window.URL.revokeObjectURL(this.src);
+                delete this;
             }
-            var data = binaryString.join('');
-
-            var base64 = window.btoa(data);
-            thisImage.src = "data:" + type + ";base64," + base64;
-            //thisImage.src = settings.urlImage;
+            imageBlob.src = window.URL.createObjectURL(blob)
 
         };
 
@@ -155,7 +160,7 @@
         }
         ;
 
-        xhr.send();
+        xhr.send(null);
     };
 
     var image_base = new Image();
@@ -202,9 +207,6 @@
 
     image_affiche.className = "img-responsive center-block";
     image_base.className = "img-responsive center-block";
-    image_base.crossOrigin = "Anonymous";
-    image_affiche.crossOrigin = "Anonymous";
-    image_modif.crossOrigin = "Anonymous";
 
     var image_position = {
         'screen': {
