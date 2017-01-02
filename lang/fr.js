@@ -29,6 +29,7 @@
 		error_glfx_support_msg  : "Désolé, ce navigateur ne supporte pas WebGL",
 		checkbox_preview        : "Prévisualiser sur la taille reelle",
 		crop_free               : "Libre",
+		border                  : "Cadre",
 
 
 		////////

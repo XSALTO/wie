@@ -39,6 +39,38 @@
     margin-top: 5px;
 }
 
+.col-content-center{
+    display: inline-block;
+    height: 100%;
+    vertical-align: middle;
+}
+
+#border_zone_list button,
+#border_zone_list img.img-responsive{
+    max-width:100%;
+    max-height:100%;
+    width:auto;
+    height:100%;
+}
+
+#border_zone_list button{
+    max-height:100px;
+}
+@media screen and (min-width: 768px){
+    #border_zone_list button{
+        max-height:175px;
+    }
+}
+@media screen and (min-width: 1200px){
+    #border_zone_list button{
+        max-height:200px;
+    }
+}
+
+#border_zone > div{
+    text-align:center;
+}
+
 #image_zone #image{
     max-height: 50vh;
 }

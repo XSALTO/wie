@@ -17,6 +17,10 @@
         {
             url: "dependence/glfx.js",
             ok: false
+        },
+        {
+            url: "border/index.js",
+            ok: false
         }
     ];
     var script_loaded = 0;
@@ -532,6 +536,9 @@
                 $('#li_traitement', settings.modal).on('click', function () {
                     annuler();
                 }).text(settings.lang.image_process);
+                $('#li_border', settings.modal).on('click', function () {
+                    annuler();
+                }).text(settings.lang.border);
                 $('#li_comparer', settings.modal).on('click', function () {
                     //$('#image_zone #image', settings.modal).cropper("destroy");
                     affiche_base();
@@ -884,11 +891,128 @@
         traitement.update();
     }
 
+    function getBorderById(id){
+        if(typeof id === 'string'){
+            for(var i = 0; i < $.fn.imageEditor.prototype.borderList.length; i++){
+                var border = $.fn.imageEditor.prototype.borderList[i];
+                if(border.id === id){
+                    return border;
+                }
+            }
+        }
+        return null;
+    }
+
+    function previewBorder(borderId){
+        $('#loading_circle', settings.modal).show();
+        var border = getBorderById(borderId);
+        if (border !== null) {
+            switch(border.partial){
+                default:
+                    var imageBorder = new Image();
+                    var canvas = document.createElement('CANVAS');
+                    canvas.height = image_affiche.naturalHeight;
+                    canvas.width = image_affiche.naturalWidth;
+                    canvas.getContext('2d').drawImage(image_affiche,0,0);
+                    $(imageBorder).one('load', {canvas:canvas}, function(e){
+                        var ctx = e.data.canvas.getContext('2d');
+                        ctx.drawImage(this,0,0, this.width, this.height, 0, 0,image_affiche.naturalWidth,image_affiche.naturalHeight);
+                        image_affiche.src = e.data.canvas.toDataURL('image/png');
+                    });
+                    imageBorder.onerror = function(err,a,z,e,r){
+                        console.log(err);
+                    };
+                    if(border.svgData){
+                        if(border.svgData.getAttribute('height') == undefined){
+                            imageBorder.height = image_affiche.naturalHeight;
+                            border.svgData.setAttribute('height', image_affiche.naturalHeight);
+                        }
+                        if(border.svgData.getAttribute('width') == undefined){
+                            imageBorder.width = image_affiche.naturalWidth;
+                            border.svgData.setAttribute('width', image_affiche.naturalWidth);
+                        }
+                        var xml = (new XMLSerializer).serializeToString(border.svgData);
+                        imageBorder.src = "data:image/svg+xml;base64,"+btoa(xml);
+                        //imageBorder.src = settings.path + 'border/' + border.file;
+                    }else{
+                        imageBorder.src = border.src;
+                    }
+                    break;
+                case 2:
+                    break;
+                case 4:
+                    break;
+            }
+        } else {
+
+        }
+
+        $('#loading_circle', settings.modal).hide();
+        $('#border_zone #validation', settings.modal).hide();
+        $('#border_zone #border_zone_list', settings.modal).show();
+
+        $(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
+    }
+    function borderValidation(borderId){
+        $('#loading_circle', settings.modal).show();
+        var border = getBorderById(borderId);
+        if (border !== null) {
+            switch(border.partial){
+                default:
+                    var imageBorder = new Image();
+                    var canvas = document.createElement('CANVAS');
+                    canvas.height = image_modif.height;
+                    canvas.width = image_modif.width;
+                    canvas.getContext('2d').drawImage(image_modif,0,0);
+                    $(imageBorder).one('load', {canvas:canvas}, function(e){
+                        var ctx = e.data.canvas.getContext('2d');
+                        ctx.drawImage(this,0,0, this.width, this.height, 0, 0,image_modif.width,image_modif.height);
+                        image_modif.src = e.data.canvas.toDataURL('image/png');
+                    });
+                    imageBorder.onerror = function(err,a,z,e,r){
+                        console.log(err);
+                    };
+                    if(border.svgData){
+                        if(border.svgData.getAttribute('height') == undefined){
+                            imageBorder.height = image_modif.height;
+                            border.svgData.setAttribute('height', image_modif.height);
+                        }
+                        if(border.svgData.getAttribute('width') == undefined){
+                            imageBorder.width = image_modif.width;
+                            border.svgData.setAttribute('width', image_modif.width);
+                        }
+                        var xml = (new XMLSerializer).serializeToString(border.svgData);
+                        imageBorder.src = "data:image/svg+xml;base64,"+btoa(xml);
+                        //imageBorder.src = settings.path + 'border/' + border.file;
+                    }else{
+                        imageBorder.src = border.src;
+                    }
+                    break;
+                case 2:
+                    break;
+                case 4:
+                    break;
+            }
+            modifNoSave = true;
+        } else {
+            var canvas = document.createElement('canvas');
+            resizeCanvasImage(image_modif, canvas, 550, 550);
+            image_affiche.src = canvas.toDataURL("image/png");
+        }
+
+        $('#loading_circle', settings.modal).hide();
+        $('#border_zone #validation', settings.modal).hide();
+        $('#border_zone #border_zone_list', settings.modal).show();
+
+        $(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
+    }
+
     function reset() {
         modifNoSave = false;
         $('#filtre', settings.modal).empty();
         $('#filtre_zone #validation', settings.modal).empty();
         $('#traitement_zone', settings.modal).empty();
+        $('#border_zone #border_zone_list', settings.modal).empty();
         $(canvas_traitement).remove();
         delete canvas_traitement;
         canvas_traitement = document.createElement('canvas');
@@ -909,6 +1033,55 @@
         filtre_utilise = null;
 
         /////////
+        //  Border
+        /////////
+        for(var i = 0; i < $.fn.imageEditor.prototype.borderList.length; i++){
+            var border = $.fn.imageEditor.prototype.borderList[i];
+            var url = settings.path + 'border/' + border.file;
+            if(/https?:\/\/[^\s]+/.test(border.file)){ //si le fichier est une url
+                url = border.file;
+            }
+            border.url = url;
+            $.ajax({
+                url: url,
+                context: border,
+                success: function(data, status, jqXHR){
+
+                    if(data instanceof XMLDocument){
+                        //si svg
+                        //if(/^\s*(?:<\?xml[^>]*>\s*)?(?:<!doctype svg[^>]*\s*(?:<![^>]*>)*[^>]*>\s*)?<svg[^>]*>[^]*<\/svg>\s*$/gim.test(data)){
+                        this.svgData = data.getElementsByTagName('svg')[0];
+                        this.svgData.setAttribute('preserveAspectRatio','none');
+                        if(this.svgData.getAttribute('height') == undefined){
+                            this.svgData.setAttribute('height', image_affiche.height);
+                        }
+                        if(this.svgData.getAttribute('width') == undefined){
+                            this.svgData.setAttribute('width', image_affiche.width);
+                        }
+                        url = "data:image/svg+xml;charset=utf-8,"+ (new XMLSerializer).serializeToString(this.svgData);
+                    }
+                    $('<div>').addClass('col-xs-6 col-sm-4 col-lg-3').append(
+                        $('<button>').addClass('btn').attr({id:this.id}).append(
+                            $('<img>').attr({alt:this.id, title:this.id, src:url||this.url}).addClass('img-responsive')
+                        ).click(function(){
+                            previewBorder(this.id);
+                            $('#border_zone #border_zone_list', settings.modal).hide();
+                            $('#border_zone #validation', settings.modal).show();
+                            $('#border_zone #validation', settings.modal).show();
+                            $('#border_zone #validation #valider', settings.modal).val(this.id);
+                        })
+                    ).appendTo('#border_zone #border_zone_list', settings.modal);
+                },
+                error: function (jqxhr, setting, exception) {
+                }
+            });
+        }
+        $('#border_zone #validation', settings.modal).hide()
+            .find('button')
+                .on('click', function () {
+                    borderValidation(this.value);
+                });
+        $('#border_zone #border_zone_list', settings.modal).show();
 
         /////////
         //  Filtres
@@ -1466,6 +1639,7 @@
         resizeCanvasImage(image_modif, canvas_traitement, 550, 550);
         cropValidation(null);
         filtreValidation("false");
+        borderValidation("false");
         setSelectedTraitement(null);
     }
 
