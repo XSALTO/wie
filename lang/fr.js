@@ -7,9 +7,10 @@
 		////////
 
 
-                crop_format:                    "Format",
 		title                   : "Image Editor",
 		crop                    : "Recadrer",
+		rotate                  : "Rotation",
+		mirror                  : "Miroir",
 		filters                 : "Filtre",
 		image_process           : "Traitement d'image",
 		compare                 : "Comparer",

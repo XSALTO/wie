@@ -532,10 +532,10 @@
 
                 $(canvas_traitement).remove();
                 canvas_traitement = document.createElement('canvas');
-                $('#li_crop', settings.modal).on('click', function () {
+                $('#li_cropper', settings.modal).on('click', function () {
                     annuler();
                     crop();
-                }).text(settings.lang.crop);
+                }).text(settings.lang.crop + '/' +settings.lang.rotate);
                 $('#li_filtre', settings.modal).on('click', function () {
                     annuler();
                 }).text(settings.lang.filters);
@@ -543,8 +543,7 @@
                     annuler();
                 }).text(settings.lang.image_process);
                 $('#li_comparer', settings.modal).on('click', function () {
-                    $('#image_zone #image', settings.modal).cropper("destroy");
-                    $('.tab-content #crop', settings.modal).removeClass("active");
+                    //$('#image_zone #image', settings.modal).cropper("destroy");
                     affiche_base();
                 }).text(settings.lang.compare);
                 $('#li_reset', settings.modal).on('click', function () {
@@ -596,13 +595,13 @@
             image_base.onerror = erreur;
             image_affiche.onerror = erreur;
 
-            $('#li_crop', settings.modal).text(settings.lang.crop);
+            $('#li_cropper', settings.modal).text(settings.lang.crop + '/' + settings.lang.rotate);
             $('#li_filtre', settings.modal).text(settings.lang.filters);
             $('#li_traitement', settings.modal).text(settings.lang.image_process);
             $('#li_comparer', settings.modal).text(settings.lang.compare);
             $('#li_reset', settings.modal).text(settings.lang.reset);
-            $('#crop #valider', settings.modal).text(settings.lang.validate_button);
-            $('#crop #annuler', settings.modal).text(settings.lang.cancel_button);
+            $('#cropper #valider', settings.modal).text(settings.lang.validate_button);
+            $('#cropper #annuler', settings.modal).text(settings.lang.cancel_button);
 
 
             //button close
@@ -683,42 +682,89 @@
                 {"label":"3:4", "value":3/4},//3
                 {"label":"9:16", "value":9/16}//4
             ];
-            $("#crop-free-text", settings.modal).text(settings.lang.crop_free);
-            $("#crop-free-checkbox", settings.modal).on('change', {crop_format:crop_format}, function (event) {
-                $('#image_zone #image', settings.modal).cropper("destroy");
-                if($(this).is(':checked')){
-                    $('#image_zone #image', settings.modal).cropper();
-                    $("#crop-format-selected", settings.modal).text(settings.lang.crop_free);
-                    $('#crop-format-slider').hide();
-                }else{
-                    $('#image_zone #image', settings.modal).cropper({
-                        aspectRatio: crop_format[$('#crop-format-slider', settings.modal).val()]["value"]
-                    });
-                    $("#crop-format-selected", settings.modal).text(crop_format[$('#crop-format-slider', settings.modal).val()]["label"]);
-                    $('#crop-format-slider').show();
+            $("#crop #crop-free-text", settings.modal).text(settings.lang.crop_free);
+            $("#crop > label", settings.modal).text(settings.lang.crop + '/' + settings.lang.rotate);
+            $("#mirror > label", settings.modal).text(settings.lang.mirror);
+            for(var i=0; i<crop_format.length; i++){
+                $('<label>',{class:'btn btn-primary',id:"ratio-add"})
+                        .append(
+                            $('<input>',{type:'radio',name:'crop-ratio',value:crop_format[i].value,autocomplete:"off"})
+                        ).append(
+                            $('<span>').text(crop_format[i].label)
+                        ).appendTo('#crop-ratio-list');
+            }
+            $('#crop #crop-ratio-list input:radio[value="NaN"]', settings.modal).click();//.prop('checked',true);
+            $('#crop #crop-ratio-list input:radio', settings.modal).on('change',function(event){
+                $('#cropper > :not(#crop) button#annuler:visible').click();
+                $('#cropper > #crop #validation').show();
+                var image =  $('#image_zone #image', settings.modal);
+                var data;
+                if(image.data("cropper-active") == true){
+                    data = image.cropper('getData');
+                    image.cropper('destroy');
+                    delete data.x;
+                    delete data.y;
+                    delete data.height;
+                    delete data.width;
                 }
-            }).prop("checked",true);
-            $("#crop-format-text", settings.modal).text(settings.lang.crop_format);
-            // slider ratio crop
-            $('#crop-format-slider', settings.modal).attr({
-                min: 0,
-                max: crop_format.length-1,
-                step: 1
-            })
-            .on('input', {crop_format:crop_format}, function (event) {
-                var crop_format = event.data.crop_format;
-                var slider = event.target;
-                $("#crop-format-selected").text(crop_format[slider.value]["label"]);
-                $('#image_zone #image', settings.modal).cropper("destroy");
-                $('#image_zone #image', settings.modal).cropper({aspectRatio:crop_format[slider.value]["value"]});
-            })
-            .on('change', {crop_format:crop_format}, function (event) {
-                var crop_format = event.data.crop_format;
-                var slider = event.target;
-                $("#crop-format-selected").text(crop_format[slider.value]["label"]);
-                $('#image_zone #image', settings.modal).cropper("destroy");
-                $('#image_zone #image', settings.modal).cropper({aspectRatio:crop_format[slider.value]["value"]});
-            }).hide();
+                image.one("built.cropper", function(){
+                    if(data != undefined){
+                        image.cropper('setData',data);
+                    }
+                }).cropper({viewMode:0,aspectRatio:this.value});
+                image.data("cropper-active",true);
+            });
+            $('#mirror label:has(input)', settings.modal).on('click',function(e){
+                $('#cropper > :not(#mirror) button#annuler:visible').click();
+                $('#cropper > #mirror #validation').show();
+                var data = $('input',this).data();
+                var $image = $('#image_zone #image', settings.modal);
+                $('input',this).data('option',-data.option);
+                var setData = function(){
+                    $image.cropper(data.method,data.option);
+                    $image.cropper('clear');
+                    $image.cropper('setDragMode','none');
+                    $image.data("cropper-active", true);
+                };
+                if($image.data("cropper-active") == true){
+                    setData();
+                }else{
+                    $image.one("built.cropper",setData).cropper();
+                }        
+                
+            });
+            $('#mirror button#annuler', settings.modal).click(function(e){
+                $('#mirror label.active:has(input)', settings.modal).click();
+                $('#cropper > #mirror #validation').hide();
+                $('#image_zone #image', settings.modal).cropper('destroy').data("cropper-active",false);
+            });
+            $('#mirror button#valider', settings.modal).click(function(e){
+                $('#cropper > #mirror #validation').hide();
+                var image = $('#image_zone #image', settings.modal);
+                var data = image.cropper('getData');
+                delete data.x;
+                delete data.y;
+                delete data.height;
+                delete data.width;
+                var $image_modif = $(image_modif);
+                $image_modif.one("built.cropper", function(){
+                    $image_modif.cropper('clear');
+                    $image_modif.cropper('setData',data);
+                    var canvas = image_modif.cropper('getCroppedCanvas')
+                    image_modif.src = canvas.toDataURL("image/" + settings.formatImageSave, 1);
+                    $image_modif.cropper('destroy');
+                    $('#mirror label.active input', settings.modal).data('option',-1);
+                    $('#mirror label.active:has(input)', settings.modal).removeClass('active').find('input').prop('checked',false);
+                    image.cropper('destroy');
+                }).cropper();
+                
+            });
+            $('#crop #rotate-input').on('change input', function(e){
+                if(!$('#crop #crop-ratio-list input').is(':checked')){
+                    $('#crop #crop-ratio-list input[value="NaN"]').click();
+                }
+                $('#image_zone #image', settings.modal).cropper($(this).data('method'), this.value - 180);
+            });
 
             image_modif.load(settings.urlImage);
             image_base.src = settings.urlImage;
@@ -739,11 +785,35 @@
 
     function affiche_base() {
         $('#loading_circle', settings.modal).show();
+        var cropData;
+        if($('#image_zone #image', settings.modal).data("cropper-active") == true){
+            cropData = $('#image_zone #image', settings.modal).cropper('getData');
+            $('#image_zone #image', settings.modal).cropper('destroy').data("cropper-active",false);
+        }
         var canvas_base = document.createElement('canvas');
         resizeCanvasImage(image_base, canvas_base, 550, 550);
+        var timer;
+        var change = function(){
+            if(timer){
+                clearTimeout(timer);
+                $('#loading_circle', settings.modal).hide();
+            }
+            $(image_affiche).off('load build.ready built.ready cropstart.cropper cropmove.cropper cropend.cropper crop.cropper zoom.cropper',change);
+        }
+        $(image_affiche).one('load',function(){
+            $(this).one('load build.ready built.ready cropstart.cropper cropmove.cropper cropend.cropper crop.cropper zoom.cropper', change);
+        });
         image_affiche.src = canvas_base.toDataURL("image/png");
-        setTimeout(function (e) {
-            if ($('#li_traitement', settings.modal).parent().hasClass('active')) {
+        timer = setTimeout(function (e) {
+            $(image_affiche).off('load build.ready built.ready cropstart.cropper cropmove.cropper cropend.cropper crop.cropper zoom.cropper',change);
+            if(cropData){
+                $('#image_zone #image', settings.modal).one("built.cropper", function(){
+                    $('#image_zone #image', settings.modal).cropper('setData',cropData).data("cropper-active",true);
+                    if($('#cropper #mirror #validation', settings.modal).is(':visible')){
+                        $('#image_zone #image', settings.modal).cropper('clear');
+                    }
+                }).cropper()
+            } else if ($('#li_traitement', settings.modal).parent().hasClass('active') && canvas_glfx) {
                 image_affiche.src = canvas_glfx.toDataURL("image/png");
             } else {
                 image_affiche.src = canvas_traitement.toDataURL("image/png");
@@ -847,6 +917,8 @@
             image_modif.src = canvas_traitement.toDataURL('image/' + settings.formatImageSave, 1);
         }
         filtre_utilise = null;
+
+        /////////
 
         /////////
         //  Filtres
@@ -1259,37 +1331,72 @@
 
     function crop() {
         // Cropper(http://fengyuanchen.github.io/cropper/)
-        if(!($("#crop-free-checkbox", settings.modal).is(":checked"))){
-            $("#crop-free-checkbox", settings.modal).click();
-        }
+        $("#crop-ratio-list input:checked", settings.modal).prop('checked',false).parent().toggleClass('active');
         $('#loading_circle', settings.modal).show();
-        $('#image_zone #image', settings.modal).cropper();
+        //$('#image_zone #image', settings.modal).cropper('clear');
         $('#loading_circle', settings.modal).hide();
-        $(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
+        //$(".modal-footer #button-action", settings.modal).addClass("traitement-no-validate");
     }
 
     function cropValidation(etat) {
         $('#loading_circle', settings.modal).show();
         if (etat == "true") {
+            var canvasData = $("#image_zone #image").cropper("getCanvasData");
+            var imageData = $("#image_zone #image").cropper("getImageData");
             var data = $("#image_zone #image").cropper("getData");
-            //récupérer les pos et crop preview et reel
-            canvas_traitement.width = data.width / ratio_image;
-            canvas_traitement.height = data.height / ratio_image;
-            canvas_traitement.getContext("2d").drawImage(image_modif, -data.x / ratio_image, -data.y / ratio_image);
-            image_modif.src = canvas_traitement.toDataURL("image/" + settings.formatImageSave, 1);
+            $('#crop rotate-input', settings.modal).val(0);
+            if(data.height !== 0 && data.width !== 0){
+                //récupérer les pos et crop preview et reel
+                var newData = {
+                    width : data.width / ratio_image,
+                    height : data.height /ratio_image,
+                    x : data.x / ratio_image,
+                    y : data.y /ratio_image,
+                    rotate : data.rotate
+                };
+                var div = $('<div></div>').insertAfter(settings.modal);
+                $(image_modif).appendTo(div);
+                $(image_modif).one("built.cropper",function(){
+                    div.hide();
+                    $(image_modif).cropper('setData', newData);
+                    $(image_modif).cropper('setCanvasData', canvasData);
+                    $(image_modif).cropper('setData', newData);    /// Il y a une dépendence entre Data et Canvas Data (principalement pour la rotation) donc on réaplique avec les nouveaux param du canvas
+                    var canvas = $(image_modif).cropper('getCroppedCanvas');
+                    //var canvas = $(image_modif).cropper().cropper('setCanvasData', canvasData).cropper('setData', newData).cropper('getCroppedCanvas');
+                    $(image_modif).cropper('destroy');
+                    $(image_modif).detach();
+                    div.remove();
+                    image_modif.src = canvas.toDataURL('image/' + settings.formatImageSave, 1);
+                }).cropper();
 
-            modifNoSave = true;
+                //canvas_traitement.width = data.width / ratio_image;
+                //canvas_traitement.height = data.height / ratio_image;
+                //canvas_traitement.getContext("2d").drawImage(image_modif, -data.x / ratio_image, -data.y / ratio_image);
+                //image_modif.src = canvas_traitement.toDataURL("image/" + settings.formatImageSave, 1);
+
+                $('#crop #rotate-input', settings.modal).val(180);
+                $('#image_zone #image', settings.modal).cropper("destroy");
+                modifNoSave = true;
+                $('#crop label.active:has(input)', settings.modal).removeClass('active').find('input').prop('checked',false);
+            }
+        }else if(etat == "false"){
+            $("#crop-ratio-list input:checked", settings.modal).prop('checked',false).parent().toggleClass('active');
+            $('#crop #rotate-input', settings.modal).val(180);
+            $('#image_zone #image', settings.modal).cropper('destroy')
+        }else{
+            $('#cropper button#annuler').click();
+            $('#image_zone #image', settings.modal).cropper("destroy");
         }
-        $('#image_zone #image', settings.modal).cropper("destroy");
-        $('#famille li', settings.modal).removeClass("active");
-        $('.tab-content div', settings.modal).removeClass("active");
+        $('#cropper > #crop #validation').hide();
+        //$('#famille li', settings.modal).removeClass("active");
+        //$('.tab-content div', settings.modal).removeClass("active");
         $('#loading_circle', settings.modal).hide();
-        $(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
+        //$(".modal-footer #button-action", settings.modal).removeClass("traitement-no-validate");
     }
 
     function annuler() {
         resizeCanvasImage(image_modif, canvas_traitement, 550, 550);
-        cropValidation("false");
+        cropValidation(null);
         filtreValidation("false");
         setSelectedTraitement(null);
     }

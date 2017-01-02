@@ -7,9 +7,10 @@
 		////////
 
 
-		
 		title                   : "Image Editor",
 		crop                    : "Crop",
+		rotate                  : "Rotate",
+		mirror                  : "Mirror",
 		filters                 : "Filter",
 		image_process           : "Image Processing",
 		compare                 : "Compare",
@@ -28,6 +29,7 @@
 		error_glfx_support_msg  : "Sorry, this browser does not support WebGL",
 		checkbox_preview        : "Preview on the real size",
 		crop_free               : "Free",
+
 
 		////////
 		// Traitements

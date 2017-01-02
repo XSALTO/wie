@@ -20,16 +20,35 @@
             </ul>
             <hr/>
             <div class="tab-content">
-                <div id="crop" class="row center-block tab-pane fade in btn-group">
-                    <div class="checkbox">
-                        <label>
-                            <input type="checkbox" id="crop-free-checkbox"><span id="crop-free-text">Libre</span>
-                        </label>
+                <div id="cropper" class="row center-block tab-pane fade in btn-group">
+                    <div id="crop" class="group-option">
+                        <label>Recadrage/Rotation</label>
+                        <br/>
+                        <div id="crop-ratio-list" class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-primary" id="crop-ratio-free">
+                                <input type="radio" name="crop-ratio" value="NaN" autocomplete="off"><span id="crop-free-text">Libre</span>
+                            </label>
+                        </div>
+                        <input id="rotate-input" data-method="rotateTo" type="range" max="360" min="0" value="180">
+                        <br/>
+                        <div id="validation" class="btn-group" style="display:none">
+                            <button id="valider" type="button" value="true" class="btn">Valider</button>
+                            <button id="annuler" type="button" value="false" class="btn">Annuler</button>
+                        </div>
                     </div>
-                    <input type="range" id="crop-format-slider"/>
-                    <div><span id="cropper-format-text">Format</span> : <span id="crop-format-selected"></span></div>
-                    <button id="valider" type="button" value="true" class="btn">Valider</button>
-                    <button id="annuler" type="button" value="false" class="btn">Annuler</button>
+                    <div id="mirror" class="group-option">
+                        <label>Miroir</label>
+                        <br/>
+                        <div class="btn-group" data-toggle="buttons">
+                            <label class="btn btn-primary"><input type="checkbox" data-method="scaleX" data-option="1" autocomplete="off"><span class="glyphicon glyphicon-resize-horizontal"></span></label>
+                            <label class="btn btn-primary"><input type="checkbox" data-method="scaleY" data-option="1" autocomplete="off"><span class="glyphicon glyphicon-resize-vertical"></span></label>
+                        </div>
+                        <br/>
+                        <div id="validation" class="btn-group" style="display:none">
+                            <button id="valider" type="button" value="true" class="btn">Valider</button>
+                            <button id="annuler" type="button" value="false" class="btn">Annuler</button>
+                        </div>
+                    </div>
                 </div>
                 <div id="filtre_zone" class="row center-block tab-pane fade in">
                     <div id="filtre"></div>
