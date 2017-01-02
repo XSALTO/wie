@@ -9,16 +9,14 @@
         </div>
 
         <div class="modal-body">
-            <div id="image_zone" class="row center-block"></div>
-            <ul id="famille" class="center-block nav nav-pills nav-justified">	
-                <li><a id='li_crop' data-toggle="tab" href="#crop">Recadrer</a></li>
-                <li><a id='li_filtre' data-toggle="tab" href="#filtre_zone">Filtre</a></li>
-                <!--	<li><a onclick="annuler()" href="#">Amélioration auto</a></li>-->
-                <li><a id='li_traitement' data-toggle="tab" href="#traitement_zone">Traitement image</a></li>
-                <li><a id='li_comparer' href="javascript:void(0)">Comparer</a></li>
-                <li><a id='li_reset' href="javascript:void(0)">Tout annuler</a></li>
-            </ul>
-            <hr/>
+            <div id="image_zone" style="position:relative;"></div>
+            <div id='information'>
+                <div class="progress progress-striped active">
+                    <div id="progressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    </div>
+                </div>
+                <img id='loading_circle'/>
+            </div>
             <div class="tab-content">
                 <div id="cropper" class="row center-block tab-pane fade in btn-group">
                     <div id="crop" class="group-option">
@@ -57,16 +55,19 @@
                 <div id="traitement_zone" class="row center-block tab-pane fade in">
                 </div>
             </div>
+            <hr/>
+            <ul id="famille" class="center-block nav nav-pills nav-justified">	
+                <li><a id='li_cropper' href="javascript:void(0)" data-toggle="tab" data-target="#cropper">Recadrer</a></li>
+                <li><a id='li_filtre' href="javascript:void(0)" data-toggle="tab" data-target="#filtre_zone">Filtre</a></li>
+                <!--	<li><a onclick="annuler()" href="#">Amélioration auto</a></li>-->
+                <li><a id='li_traitement' href="javascript:void(0)" data-toggle="tab" data-target="#traitement_zone">Traitement image</a></li>
+                <li><a id='li_border' href="javascript:void(0)" data-toggle="tab" data-target="#border_zone">Cadre</a></li>
+                <li><a id='li_comparer' href="javascript:void(0)">Comparer</a></li>
+                <li><a id='li_reset' href="javascript:void(0)">Tout annuler</a></li>
+            </ul>
         </div>
 
         <div class="modal-footer">
-            <div id='information'>
-                <div class="progress progress-striped active">
-                    <div id="progressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-                    </div>
-                </div>
-                <img id='loading_circle'/>
-            </div>
             <div id='button-action'>
             </div>
         </div>

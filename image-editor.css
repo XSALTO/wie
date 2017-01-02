@@ -35,6 +35,10 @@
 	max-width: 30px
 }
 
+#cropper .group-option + .group-option{
+    margin-top: 5px;
+}
+
 #image_zone #image{
     max-height: 50vh;
 }

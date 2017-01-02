@@ -25,6 +25,7 @@
         'iPhone Simulator',
         'iPod Simulator',
         'iPad',
+        'MacIntel',
         'iPhone',
         'iPod'];
     var lang_possible = [
@@ -207,17 +208,6 @@
 
     image_affiche.className = "img-responsive center-block";
     image_base.className = "img-responsive center-block";
-
-    var image_position = {
-        'screen': {
-            'left': 0,
-            'top': 0
-        },
-        'modal': {
-            'left': 0,
-            'top': 0
-        }
-    };
 
     $.fn.imageEditor = function (options, action) {
         if (options === undefined) {
@@ -1180,19 +1170,17 @@
         }
 
 
-        $('body').off('resize');
-        $('body').off('orientationchange');
         // Generate all nubs
+        if(traitement.nubs.length){
+            $(image_affiche).parent().css({position:'relative'});
+        }
         for (var i = 0; i < traitement.nubs.length; i++) {
             var nub = traitement.nubs[i];
 
-            var x = nub.x * canvas_glfx.width;
-            var y = nub.y * canvas_glfx.height;
-            $('<div class="nub" id="' + nub.id + '"></div>').appendTo($('#image', settings.modal).parent());
-            image_position.screen.left = ($('#' + nub.id, settings.modal).parent().width() - $('#image', settings.modal).width()) / 2 + $('#' + nub.id, settings.modal).parent().offset().left;
-            image_position.screen.top = ($('#' + nub.id, settings.modal).parent().height() - $('#image', settings.modal).height()) / 2 + $('#' + nub.id, settings.modal).parent().offset().top;
-            image_position.modal.left = image_position.screen.left - ($('#image_zone', settings.modal).offset().left - $('#' + nub.id, settings.modal).parent().position().left);
-            image_position.modal.top = image_position.screen.top - ($('#' + nub.id, settings.modal).parent().offset().top - $('#' + nub.id, settings.modal).parent().position().top);
+            // position par rapport à la taille affichée
+            var x = nub.x * image_affiche.naturalWidth;
+            var y = nub.y * image_affiche.naturalHeight;
+            $('<div class="nub" id="' + nub.id + '"></div>').insertBefore($('#image', settings.modal));
 
             /////////
             //  Event pour le déplacement des nubs
@@ -1201,13 +1189,40 @@
             var ontouchmove = (function (event) {
                 ////	TACTILE
                 var e = event.originalEvent;
-                var offset = $(event.target).offset();
+                event.preventDefault();
                 var nub = event.data.nub;
-                var position_actuel_x = offset.left + $(nub).width() / 2 - image_position.screen.left;
-                var position_actuel_y = offset.top + $(nub).height() / 2 - image_position.screen.top;
-                var x = (e.touches[0].pageX - image_position.screen.left) * (image_affiche.naturalWidth / $('#image', settings.modal).width());
-                var y = (e.touches[0].pageY - image_position.screen.top) * (image_affiche.naturalHeight / $('#image', settings.modal).height());
+                var $nub = $(nub);
+                var $img = $(image_affiche);
 
+                var position = {
+                    img : {
+                        // position par rapport à l'affichage de l'écran
+                        offset : $img.offset(),
+
+                        // position exact de l'image dans son container
+                        //      (espace présent sur les cotés de l'image) / 2 (pour un seul coté)
+                        display :{
+                            left : ($img.parent().width() - $img.width()) /2,
+                            top : ($img.parent().height() - $img.height()) /2,
+
+                        }
+                    },
+                    nub : {
+                        //position relative au container #image_zone
+                        css : $nub.position(),
+                    }
+                }
+                // position du nub par rapport a l'image
+                position.nub.img = {
+                    left : position.nub.css.left - position.img.display.left,
+                    top : position.nub.css.top - position.img.display.top
+                }
+
+                // nouvelles position fix par rapport à la taille naturel de l'image
+                var x = (e.touches[0].pageX - position.img.offset.left) * (image_affiche.naturalWidth / $img.width())
+                var y = (e.touches[0].pageY - position.img.offset.top) * (image_affiche.naturalWidth / $img.width())
+
+                // ne pas sortir des bords  de l'image ?
                 if (x < 0)
                     x = 0;
                 if (x > image_affiche.naturalWidth)
@@ -1217,10 +1232,14 @@
                 if (y > image_affiche.naturalHeight)
                     y = image_affiche.naturalHeight;
 
-                $('#' + nub.id, settings.modal).css({
-                    left: (x * ($('#image', settings.modal).width() / image_affiche.naturalWidth)) + image_position.modal.left,
-                    top: (y * ($('#image', settings.modal).height() / image_affiche.naturalHeight)) + image_position.modal.top
-                });
+                // nouvelle position de nub
+                //                      ( position réel  * ratio de l'image affiché) + la vrai position de l'image
+                position.nub.css.left = (x * ($img.width() / image_affiche.naturalWidth)) + position.img.display.left;
+                position.nub.css.top = (y * ($img.height() / image_affiche.naturalHeight)) + position.img.display.top;
+                //$.map({x:x,y:y,position:position}, (val,key) => {console.log(key +' : ' + val);if(val instanceof Object){ console.log(JSON.stringify(val)) }});
+                //console.log('-----------------------------FIN----------------------------');
+
+                $nub.css(position.nub.css);
 
                 traitement[nub.id] = {
                     x: x,
@@ -1237,8 +1256,35 @@
                 ////	SOURIS
                 var offset = $(event.target).offset();
                 var nub = event.data.nub;
-                var x = (event.pageX - image_position.screen.left) * (image_affiche.naturalWidth / $('#image', settings.modal).width());
-                var y = (event.pageY - image_position.screen.top) * (image_affiche.naturalHeight / $('#image', settings.modal).height());
+                var $nub = $(nub);
+                var $img = $(image_affiche);
+
+                var position = {
+                    img : {
+                        // position par rapport à l'affichage de l'écran
+                        offset : $img.offset(),
+
+                        // position exact de l'image dans son container
+                        //      (espace présent sur les cotés de l'image) / 2 (pour un seul coté)
+                        display :{
+                            left : ($img.parent().width() - $img.width()) /2,
+                            top : ($img.parent().height() - $img.height()) /2,
+
+                        }
+                    },
+                    nub : {
+                        //position relative au container #image_zone
+                        css : $nub.position(),
+                    }
+                }
+                // position du nub par rapport a l'image
+                position.nub.img = {
+                    left : position.nub.css.left - position.img.display.left,
+                    top : position.nub.css.top - position.img.display.top
+                }
+                // nouvelles position fix par rapport à la taille naturel de l'image
+                var x = (event.pageX - position.img.offset.left) * (image_affiche.naturalWidth / $img.width())
+                var y = (event.pageY - position.img.offset.top) * (image_affiche.naturalWidth / $img.width())
 
                 // ne pas sortir des bords  de l'image ?
                 if (x < 0)
@@ -1250,10 +1296,15 @@
                 if (y > image_affiche.naturalHeight)
                     y = image_affiche.naturalHeight;
 
-                $('#' + nub.id, settings.modal).css({
-                    left: (x * ($('#image', settings.modal).width() / image_affiche.naturalWidth)) + image_position.modal.left,
-                    top: (y * ($('#image', settings.modal).height() / image_affiche.naturalHeight)) + image_position.modal.top
-                });
+                // nouvelle position de nub
+                //                      ( position réel  * ratio de l'image affiché) + la vrai position de l'image
+                position.nub.css.left = (x * ($img.width() / image_affiche.naturalWidth)) + position.img.display.left;
+                position.nub.css.top = (y * ($img.height() / image_affiche.naturalHeight)) + position.img.display.top;
+                //$.map({x:x,y:y,position:position}, (val,key) => {console.log(key +' : ' + val);if(val instanceof Object){ console.log(JSON.stringify(val)) }});
+                //console.log('-----------------------------FIN----------------------------');
+
+                $nub.css(position.nub.css);
+
                 traitement[nub.id] = {
                     x: x,
                     y: y,
@@ -1292,41 +1343,58 @@
             var actualisePos = function (event) {
                 var traitement = event.data.traitement;
                 var nub = event.data.nub;
+                var $nub = $('#'+nub.id, settings.modal);
+                var $img = $(image_affiche);
+
+                var position = {
+                    img : {
+                        // position par rapport à l'affichage de l'écran
+                        offset : $img.offset(),
+
+                        // position exact de l'image dans son container
+                        //      (espace présent sur les cotés de l'image) / 2 (pour un seul coté)
+                        display :{
+                            left : ($img.parent().width() - $img.width()) /2,
+                            top : ($img.parent().height() - $img.height()) /2,
+
+                        }
+                    },
+                    nub : {
+                        //position relative au container #image_zone
+                        css : $nub.position(),
+                    }
+                }
+                // position du nub par rapport a l'image
+                position.nub.img = {
+                    left : position.nub.css.left - position.img.display.left,
+                    top : position.nub.css.top - position.img.display.top
+                }
+
                 var x = traitement[nub.id].x;
                 var y = traitement[nub.id].y;
-                image_position.screen.left = ($('#' + nub.id, settings.modal).parent().width() - $('#image', settings.modal).width()) / 2 + $('#' + nub.id, settings.modal).parent().offset().left;
-                image_position.screen.top = ($('#' + nub.id, settings.modal).parent().height() - $('#image', settings.modal).height()) / 2 + $('#' + nub.id, settings.modal).parent().offset().top;
-                image_position.modal.left = image_position.screen.left - ($('#image_zone', settings.modal).offset().left - $('#' + nub.id, settings.modal).parent().position().left);
-                image_position.modal.top = image_position.screen.top - ($('#' + nub.id, settings.modal).parent().offset().top - $('#' + nub.id, settings.modal).parent().position().top);
-                $('#' + nub.id, settings.modal).css({
-                    left: (x * ($('#image', settings.modal).width() / image_affiche.naturalWidth)) + image_position.modal.left,
-                    top: (y * ($('#image', settings.modal).height() / image_affiche.naturalHeight)) + image_position.modal.top
-                });
-            }
-            ;
 
-            $(window).on('orientationchange', {
-                nub: nub,
-                traitement: traitement
-            }, actualisePos);
-            $(window).on('resize', {
+                position.nub.css.left = (x * ($img.width() / image_affiche.naturalWidth)) + position.img.display.left;
+                position.nub.css.top = (y * ($img.height() / image_affiche.naturalHeight)) + position.img.display.top;
+
+                $nub.css(position.nub.css);
+            };
+
+            $(window).on('orientationchange resize', {
                 nub: nub,
                 traitement: traitement
             }, actualisePos);
 
 
-            $('#' + nub.id, settings.modal).css({
-                left: (x * ($('#image', settings.modal).width() / canvas_glfx.width)) + image_position.modal.left,
-                top: (y * ($('#image', settings.modal).height() / canvas_glfx.height)) + image_position.modal.top
-            });
             traitement[nub.id] = {
                 x: x,
                 y: y,
-                reel_x: x / ratio_image,
-                reel_y: y / ratio_image
+                reel_x: x / (ratio_image * (image_affiche.width / image_affiche.naturalWidth)),
+                reel_y: y / (ratio_image * (image_affiche.height / image_affiche.naturalHeight))
             };
+            actualisePos({data:{nub:nub,traitement:traitement}});
+
         }
-        traitement.update();
+        traitement.update(); /// la taille naturelle est redéfini par la texture glfx donc calcul des pos après
     }
 
     function crop() {
