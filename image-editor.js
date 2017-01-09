@@ -694,7 +694,7 @@
             for(var i=0; i<crop_format.length; i++){
                 $('<label>',{class:'btn btn-primary',id:"ratio-add"})
                         .append(
-                            $('<input>',{type:'radio',name:'crop-ratio',value:crop_format[i].value,autocomplete:"off"})
+                            $('<input>',{type:'radio',name:'crop-ratio',value:crop_format[i].value})
                         ).append(
                             $('<span>').text(crop_format[i].label)
                         ).appendTo('#crop-ratio-list');
