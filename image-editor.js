@@ -541,11 +541,6 @@
                 }).text(settings.lang.crop + '/' +settings.lang.rotate);
                 $('#li_filtre', settings.modal).on('click', function () {
                     annuler();
-                }).text(settings.lang.filters);
-                $('#li_traitement', settings.modal).on('click', function () {
-                    annuler();
-                }).text(settings.lang.image_process);
-                $('#li_border', settings.modal).on('click', function () {
                     annuler();
                 }).text(settings.lang.border);
                 $('#li_comparer', settings.modal).on('click', function () {
@@ -1046,6 +1041,27 @@
         /////////
         //  Border
         /////////
+        $('a#li_border', settings.modal).parent().hide();
+        $.fn.imageEditor.prototype.borderList = $.fn.imageEditor.prototype.borderList || [];
+        var borderToAdd = $.fn.imageEditor.prototype.borderList.length;
+        var numberBorderLoad = 0;
+        var displayBorderZone = false;
+        var borderLoaded=function(success){
+            numberBorderLoad ++;
+            console.log(success);
+            console.log(borderToAdd);
+            console.log(numberBorderLoad);
+            console.log(displayBorderZone);
+            console.log("-------------------");
+            if(success === true){
+                displayBorderZone = true;
+            }
+            if(numberBorderLoad === borderToAdd && displayBorderZone === true){
+                $('a#li_border', settings.modal).parent().show();
+            }else if(displayBorderZone === false){
+                $('a#li_border', settings.modal).parent().hide();
+            }
+        }
         for(var i = 0; i < $.fn.imageEditor.prototype.borderList.length; i++){
             var border = $.fn.imageEditor.prototype.borderList[i];
             var url = settings.path + 'border/' + border.file;
@@ -1082,8 +1098,10 @@
                             $('#border_zone #validation #valider', settings.modal).val(this.id);
                         })
                     ).appendTo('#border_zone #border_zone_list', settings.modal);
+                    borderLoaded(true);
                 },
                 error: function (jqxhr, setting, exception) {
+                    borderLoaded(false);
                 }
             });
         }
@@ -1097,6 +1115,7 @@
         /////////
         //  Filtres
         /////////
+        var $liFilter = $('a#li_filtre', settings.modal).parent().hide();
         for (var i = 0; i < filtres.length; i++) {
             var filtre = filtres[i];
             var display = true;
@@ -1107,6 +1126,7 @@
                 }
             }
             if (display) {
+                $liFilter.show();
                 $('<button />').attr({
                     type: "button",
                     class: "btn",
@@ -1156,6 +1176,7 @@
                 id: "traitement_parametre",
                 class: "tab-content"
             }).appendTo('#traitement_zone', settings.modal);
+            var $liTraitement = $('a#li_traitement', settings.modal).parent().hide();
             for (var i = 0; i < traitements.length; i++) {
                 var traitement = traitements[i];
                 var display = true;
@@ -1166,6 +1187,7 @@
                     }
                 }
                 if (display) {
+                    $liTraitement.show();
                     $('<button />').attr({
                         'data-toggle': "tab",
                         href: '#' + traitement.id,
