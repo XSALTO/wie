@@ -541,6 +541,11 @@
                 }).text(settings.lang.crop + '/' +settings.lang.rotate);
                 $('#li_filtre', settings.modal).on('click', function () {
                     annuler();
+                }).text(settings.lang.filters); 
+                $('#li_traitement', settings.modal).on('click', function () { 
+                    annuler(); 
+                }).text(settings.lang.image_process); 
+                $('#li_border', settings.modal).on('click', function () { 
                     annuler();
                 }).text(settings.lang.border);
                 $('#li_comparer', settings.modal).on('click', function () {
